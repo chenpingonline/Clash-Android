@@ -85,13 +85,13 @@ private val dockLabels = listOf("首页", "代理", "配置", "活动", "设置"
             }
         }
     }
-    val indicatorColor by animateColorAsState(if (plain) { if (colors.background.luminance() < 0.5f) colors.surfaceContainerHighest else Color(0xFFE2E3E4) } else colors.primaryContainer, tween(180), label = "dockIndicatorColor")
+    val indicatorColor by animateColorAsState(if (plain) { if (colors.background.luminance() < 0.5f) colors.surfaceContainerHighest else Color.Black } else colors.primaryContainer, tween(180), label = "dockIndicatorColor")
     val icons = if (plain) listOf(Icons.Filled.Home, Icons.Filled.Public, Icons.Filled.Description, Icons.Filled.BarChart, Icons.Filled.Settings) else if (pearl) listOf(Icons.Outlined.Home, Icons.AutoMirrored.Outlined.Send, Icons.Outlined.Dns, Icons.Outlined.BarChart, Icons.Outlined.Settings) else listOf(Icons.Outlined.Home, Icons.Outlined.AccountTree,
         Icons.Outlined.Description, Icons.Outlined.Insights, Icons.Outlined.Settings)
     Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = dockInset).padding(top = 10.dp, bottom = 18.dp),
         contentAlignment = Alignment.Center) {
         Surface(
-            modifier = Modifier.fillMaxWidth().testTag("dock-surface").shadow(12.dp, RoundedCornerShape(cornerRadius),
+            modifier = Modifier.fillMaxWidth().testTag("dock-surface").dockGlassHalo(cornerRadius, colors.surface.luminance() > 0.5f).shadow(12.dp, RoundedCornerShape(cornerRadius),
                 ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.14f)),
             shape = RoundedCornerShape(cornerRadius),
             color = Color.Transparent,
@@ -116,7 +116,7 @@ private val dockLabels = listOf("首页", "代理", "配置", "活动", "设置"
                     // Keep the same blurred base underneath every tab so selection
                     // never exposes sharper page details than the surrounding Dock.
                     if (!plain) drawDockLensBackdrop(glass, origin, lensSize, outline,stretch)
-                    drawPath(outline,indicatorColor.copy(alpha = if (plain) 0.96f else 0.64f))
+                    drawPath(outline,indicatorColor.copy(alpha = if (plain) { if (colors.background.luminance() < 0.5f) 0.96f else 0.065f } else 0.64f))
                     drawPath(outline,Brush.linearGradient(listOf(colors.surface.copy(alpha = if (plain) 0.05f else 0.16f),
                         Color.Transparent, colors.surface.copy(alpha = 0.025f)),origin,origin+Offset(lensWidth,lensHeight)))
                     if (!plain) drawDockLensHighlights(outline,origin,lensSize,colors.surface.luminance()>0.5f,stretch)

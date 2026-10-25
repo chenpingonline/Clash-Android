@@ -121,3 +121,70 @@ internal class DockRefraction(blurPixels: Float) {
         return effect
     }
 }
+
+/** Constant-cost rounded-rectangle optics for the stationary outer Dock.
+ * Only sampled page pixels bend; the shape, selection, icons and labels do not. */
+@RequiresApi(33)
+internal class DockSurfaceRefraction(blurPixels: Float) {
+    private val shader = RuntimeShader("""
+        uniform shader page;
+        uniform float2 origin;
+        uniform float2 halfSize;
+        uniform float radius;
+        uniform float edgeBand;
+        uniform float amount;
+        uniform float3 tint;
+        uniform float2 veil;
+        half4 main(float2 coord) {
+            float2 p = coord - origin - halfSize;
+            float2 q = abs(p) - (halfSize - radius);
+            float2 corner = max(q, 0.0);
+            float cornerLength = length(corner);
+            float distance = cornerLength + min(max(q.x, q.y), 0.0) - radius;
+            if (distance > 1.0) return page.eval(coord);
+            float2 normal = cornerLength > 0.001
+                ? corner / max(cornerLength, 0.001) * sign(p)
+                : (q.x > q.y ? float2(sign(p.x), 0.0) : float2(0.0, sign(p.y)));
+            float depth = clamp(max(-distance, 0.0) / edgeBand, 0.0, 1.0);
+            float edge = 1.0 - smoothstep(0.0, 1.0, depth);
+            // A smooth lens shoulder joins the unchanged page at BOTH ends.
+            // Limit its slope so samples stay ordered instead of folding into
+            // duplicate lettering or dragging remote text onto the bottom rim.
+            float shoulder = 16.0 * depth * depth * (1.0 - depth) * (1.0 - depth);
+            float displacement = min(amount, edgeBand * 0.24) * shoulder;
+            float2 samplePoint = coord + normal * displacement;
+            half4 color = page.eval(samplePoint);
+            // A broad translucent body retains the low-frequency background colour.
+            // The shoulder changes transmission gently, avoiding a dark narrow ring.
+            float coating = mix(veil.x, veil.y, shoulder);
+            color.rgb = mix(color.rgb, half3(tint), half(coating));
+            float upperLight = max(dot(normal, normalize(float2(-0.55, -1.0))), 0.0);
+            float lowerLight = max(dot(normal, normalize(float2(0.55, 1.0))), 0.0);
+            float reflection = (upperLight * 0.14 + lowerLight * 0.06) * edge * edge;
+            color.rgb += (half3(1.0) - color.rgb) * half(reflection);
+            return color;
+        }
+    """.trimIndent())
+    private val blur = RenderEffect.createBlurEffect(blurPixels, blurPixels, Shader.TileMode.CLAMP)
+    private var previous: Parameters? = null
+    private var cached: androidx.compose.ui.graphics.RenderEffect? = null
+    private data class Parameters(val origin: Offset, val size: Size, val radius: Float,
+        val band: Float, val amount: Float, val tint: androidx.compose.ui.graphics.Color, val light: Boolean)
+
+    fun update(origin: Offset, size: Size, radius: Float, band: Float, amount: Float,
+               tint: androidx.compose.ui.graphics.Color, light: Boolean): androidx.compose.ui.graphics.RenderEffect {
+        val parameters = Parameters(origin, size, radius, band, amount, tint, light)
+        if (parameters == previous) return cached!!
+        shader.setFloatUniform("origin", origin.x, origin.y)
+        shader.setFloatUniform("halfSize", size.width / 2, size.height / 2)
+        shader.setFloatUniform("radius", radius.coerceAtMost(minOf(size.width, size.height) / 2))
+        shader.setFloatUniform("edgeBand", band)
+        shader.setFloatUniform("amount", amount)
+        shader.setFloatUniform("tint", tint.red, tint.green, tint.blue)
+        shader.setFloatUniform("veil", if (light) 0.82f else 0.88f, if (light) 0.78f else 0.58f)
+        cached = RenderEffect.createChainEffect(RenderEffect.createRuntimeShaderEffect(shader, "page"), blur)
+            .asComposeRenderEffect()
+        previous = parameters
+        return cached!!
+    }
+}

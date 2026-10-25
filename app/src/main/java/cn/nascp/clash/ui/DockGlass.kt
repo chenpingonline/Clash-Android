@@ -43,26 +43,16 @@ internal fun Modifier.dockBackdropSource(backdrop: DockBackdrop, background: Col
         backdrop.layer.record {
             drawRect(background)
             this@drawWithContent.drawContent()
-            // Soften page content before it passes under the floating Dock. Recording
-            // the veil here also gives the glass the same already-softened backdrop.
-            if (fadeColor != null && top.isFinite()) {
-                drawRect(Brush.verticalGradient(
-                    0f to fadeColor.copy(alpha = 0f),
-                    0.35f to fadeColor.copy(alpha = 0.42f),
-                    0.72f to fadeColor.copy(alpha = 0.86f),
-                    1f to fadeColor.copy(alpha = 0.96f),
-                    startY = fadeStart, endY = fadeEnd),
-                    topLeft = Offset(0f, fadeStart), size = Size(size.width, (size.height - fadeStart).coerceAtLeast(0f)))
-            }
         }
         drawLayer(backdrop.layer)
         if (fadeColor != null && top.isFinite() && Build.VERSION.SDK_INT >= 31) {
-            // The reference softens page pixels outside the capsule as well. Blend
-            // a blurred lower strip into the page, leaving the Dock foreground sharp.
-            val blurRadius = 12.dp.toPx()
+            // Do not blur approaching text above the Dock. Only soften the lower
+            // page after it crosses the capsule top; the separate white fade
+            // establishes depth without producing a horizontal defocus band.
+            val blurRadius = 2.dp.toPx()
             val margin = blurRadius * 3
-            val transition = 40.dp.toPx()
-            val stripTop = (top - transition).coerceIn(0f, size.height)
+            val transition = 12.dp.toPx()
+            val stripTop = top.coerceIn(0f, size.height)
             val stripSize = IntSize((size.width + margin * 2).roundToInt(),
                 (size.height - stripTop + margin * 2).roundToInt())
             val densitySnapshot = androidx.compose.ui.unit.Density(density, fontScale)
@@ -81,10 +71,21 @@ internal fun Modifier.dockBackdropSource(backdrop: DockBackdrop, background: Col
             }
             translate(-margin, stripTop - margin) { drawLayer(backdrop.maskLayer) }
         }
+        // Visible page fading is separate from the raw pixels sampled by the glass.
+        if (fadeColor != null && top.isFinite()) {
+            drawRect(Brush.verticalGradient(
+                0f to fadeColor.copy(alpha = 0f),
+                0.35f to fadeColor.copy(alpha = 0.30f),
+                0.72f to fadeColor.copy(alpha = 0.65f),
+                1f to fadeColor.copy(alpha = 0.80f),
+                startY = fadeStart, endY = fadeEnd),
+                topLeft = Offset(0f, fadeStart), size = Size(size.width, (size.height - fadeStart).coerceAtLeast(0f)))
+        }
     }
 
 @Stable internal class DockGlass(val layer: GraphicsLayer, val lensLayer: GraphicsLayer, val backdrop: DockBackdrop?, val refractive: Boolean) {
     var refraction: DockRefraction? = null
+    var surfaceRefraction: DockSurfaceRefraction? = null
     var origin by mutableStateOf(Offset.Zero)
     // Written by the parent's draw before the lens is drawn, with no snapshot invalidation loop.
     var ready = false
@@ -98,24 +99,51 @@ internal fun Modifier.dockBackdropSource(backdrop: DockBackdrop, background: Col
     return remember(layer, lensLayer, backdrop, refractive) { DockGlass(layer, lensLayer, backdrop, refractive) }
 }
 
+/** A diffuse perimeter shadow also separates white glass from white page cards. */
+@Composable internal fun Modifier.dockGlassHalo(cornerRadius: Dp, light: Boolean): Modifier {
+    val halo = rememberGraphicsLayer()
+    val blurPixels = with(androidx.compose.ui.platform.LocalDensity.current) { 8.dp.toPx() }
+    val blur = remember(blurPixels) { if (Build.VERSION.SDK_INT >= 31) BlurEffect(blurPixels, blurPixels, TileMode.Decal) else null }
+    return drawWithContent {
+        if (Build.VERSION.SDK_INT >= 31 && light) {
+            val margin = 24.dp.toPx()
+            halo.renderEffect = blur
+            halo.record(androidx.compose.ui.unit.Density(density, fontScale), layoutDirection,
+                IntSize((size.width + margin * 2).roundToInt(), (size.height + margin * 2).roundToInt())) {
+                drawRoundRect(Color.Black.copy(alpha = 0.09f), Offset(margin, margin),
+                    this@drawWithContent.size, CornerRadius(cornerRadius.toPx()))
+            }
+            translate(-margin, -margin) { drawLayer(halo) }
+        }
+        drawContent()
+    }
+}
+
 internal fun Modifier.dockGlassSurface(glass: DockGlass, tint: Color, cornerRadius: Dp): Modifier =
     onGloballyPositioned {
         glass.origin = it.positionInRoot()
         glass.backdrop?.dockTop = glass.origin.y
     }.drawWithContent {
         val source = glass.backdrop
+        val light = tint.luminance() > 0.5f
+        val opticalSurface = Build.VERSION.SDK_INT >= 33 && source != null
         glass.ready = Build.VERSION.SDK_INT >= 31 && source != null && source.layer.size.width > 0
         if (glass.ready && source != null) {
             // Capture a small overscanned strip, not a blurred full-screen texture. Overscan
             // supplies real neighbours for the blur instead of dark/transparent capsule edges.
-            // Supply three blur radii of real page pixels around the capsule.
-            val margin = 84.dp.toPx()
+            // Leave neighbours for both the light blur and the outward edge samples.
+            val margin = 32.dp.toPx()
             glass.margin = margin
             val relative = glass.origin - source.origin
-            val blurRadius = 28.dp.toPx()
+            val blurRadius = 10.dp.toPx()
             if (glass.blurRadius != blurRadius) {
                 glass.blurRadius = blurRadius
                 glass.layer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
+                if (Build.VERSION.SDK_INT >= 33) glass.surfaceRefraction = DockSurfaceRefraction(blurRadius)
+            }
+            if (Build.VERSION.SDK_INT >= 33) {
+                glass.layer.renderEffect = glass.surfaceRefraction!!.update(Offset(margin, margin), size,
+                    cornerRadius.toPx(), 12.dp.toPx(), 3.dp.toPx(), if (light) Color(0xFFFAFAFA) else tint, light)
             }
             glass.layer.record(androidx.compose.ui.unit.Density(density,fontScale), layoutDirection,
                 IntSize((size.width + margin * 2).roundToInt(), (size.height + margin * 2).roundToInt())) {
@@ -135,10 +163,11 @@ internal fun Modifier.dockGlassSurface(glass: DockGlass, tint: Color, cornerRadi
             }
             translate(-margin, -margin) { drawLayer(glass.layer) }
         }
-        val light = tint.luminance() > 0.5f
-        // A broad blur supplies the frost; the neutral veil preserves diffuse page
-        // colour without making the capsule look like an opaque white card.
-        drawRect(tint.copy(alpha = if (glass.ready) { if(light) 0.64f else 0.72f } else 0.96f))
+        // API 33+ coats the centre and rim separately in the optical shader.
+        // Older devices retain a light-frost fallback with the same fixed outline.
+        if (!(glass.ready && opticalSurface)) {
+            drawRect(tint.copy(alpha = if (glass.ready) { if(light) 0.64f else 0.72f } else 0.96f))
+        }
         drawRect(Color.Black.copy(alpha = if (light) 0.012f else 0.025f))
         drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (light) 0.12f else 0.035f),
             Color.White.copy(alpha = 0.025f), tint.copy(alpha = 0.08f))))
@@ -146,14 +175,14 @@ internal fun Modifier.dockGlassSurface(glass: DockGlass, tint: Color, cornerRadi
         val radius = cornerRadius.toPx()
         // One white perimeter, with a broad low-contrast frosted shoulder inside.
         // Separation comes from the ambient shadow, not a second grey outline.
-        val stroke = (if (light) 1.dp else 0.8.dp).toPx()
+        val stroke = (if (light) 1.4.dp else 0.8.dp).toPx()
         val inset = stroke / 2
         val rim = Brush.verticalGradient(listOf(
-            Color.White.copy(alpha = if (light) 0.90f else 0.18f),
-            Color.White.copy(alpha = if (light) 0.76f else 0.04f),
-            if (light) Color.White.copy(alpha = 0.82f) else Color.Black.copy(alpha = 0.18f)),
+            Color.White.copy(alpha = if (light) 0.82f else 0.18f),
+            Color.White.copy(alpha = if (light) 0.40f else 0.04f),
+            if (light) Color.White.copy(alpha = 0.60f) else Color.Black.copy(alpha = 0.18f)),
             startY = 0f, endY = size.height)
-        if (light) {
+        if (light && !opticalSurface) {
             val shoulder = 3.dp.toPx()
             drawRoundRect(Color.White.copy(alpha = 0.12f),
                 Offset(shoulder / 2, shoulder / 2), Size(size.width - shoulder, size.height - shoulder),

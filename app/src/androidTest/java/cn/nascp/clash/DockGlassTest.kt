@@ -56,8 +56,10 @@ class DockGlassTest {
                 capture.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
             }
             val pixels = capture.toPixelMap()
+            // The optical shoulder retains live detail; the middle is deliberately
+            // coated more strongly so moving letters do not compete with labels.
             val line = (pixels.width / 2 until pixels.width * 9 / 10).map { x ->
-                val p = pixels[x, (pixels.height * 0.60f).toInt()]
+                val p = pixels[x, (pixels.height * 0.10f).toInt()]
                 p.green - p.red
             }
             val variation = line.zipWithNext().sumOf { (a, b) -> abs(a - b).toDouble() }.toFloat() /
@@ -72,8 +74,10 @@ class DockGlassTest {
         }
         val sharpVariation = sharpLine.zipWithNext().sumOf { (a, b) -> abs(a - b).toDouble() }.toFloat() /
             sharpLine.sumOf { abs(it).toDouble() }.toFloat()
-        assertTrue("Blur must soften stripe boundaries, not merely make the panel transparent",
-            blurredVariation < sharpVariation * 0.4f)
+        assertTrue("Light blur must soften stripe boundaries while retaining background detail",
+            blurredVariation < sharpVariation * 0.85f)
+        assertTrue("Glass must retain background structure so edge refraction remains visible",
+            blurredVariation > sharpVariation * 0.08f)
         // Updating only the source draw must also refresh the sampled Dock background.
         ui.runOnIdle { switched.value = true }
         ui.waitForIdle()
@@ -129,7 +133,7 @@ class DockGlassTest {
         assertTrue("The page fade must leave Dock icons and labels sharp", dark > 100)
     }
 
-    @Test fun pageDetailsSoftenOutsideTheCapsule() {
+    @Test fun approachingPageDetailsStaySharpOutsideTheCapsule() {
         ui.setContent {
             ClashTheme("plain") {
                 val backdrop = rememberDockBackdrop()
@@ -163,8 +167,66 @@ class DockGlassTest {
         val clear = detail(top - 60f)
         val approaching = detail(top - 8f)
         assertTrue("The page away from the Dock must retain sharp detail", clear > 0.05f)
-        assertTrue("Page detail must soften before the capsule, rather than only fade in opacity",
-            approaching < clear * 0.55f)
+        assertTrue("Approaching content must retain sharp edges instead of forming a horizontal blur band",
+            approaching > clear * 0.85f)
+    }
+
+    @Test fun outerDockRefractsScrollingPixelsWithBrightFixedInterior() {
+        org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT >= 33)
+        val scroll = mutableStateOf(0f)
+        val darkContent = mutableStateOf(false)
+        ui.setContent {
+            ClashTheme("plain") {
+                val backdrop = rememberDockBackdrop()
+                Box(Modifier.size(320.dp, 360.dp).testTag("outer-optics-fixture")) {
+                    Box(Modifier.fillMaxSize().dockBackdropSource(backdrop, Color.White).drawBehind {
+                        val top = backdrop.dockTop - backdrop.origin.y
+                        if (top.isFinite()) {
+                            // A page detail travels through the optical shoulder.
+                            // Broad frosting must retain a visible colour response without a dark stripe.
+                            // It must move with the page while the glass stays still.
+                            drawRect(Color(0xFF00C878), Offset(0f, top + (scroll.value + 2f).dp.toPx()),
+                                Size(size.width, 6.dp.toPx()))
+                            if (darkContent.value) {
+                                // Use letter-sized strokes, rather than an opaque photo-sized slab.
+                                // Broad photos should still transmit colour; thin text should dissolve.
+                                repeat(4) { line ->
+                                    drawRect(Color.Black, Offset(0f, top + (18 + line * 7).dp.toPx()),
+                                        Size(size.width, 2.dp.toPx()))
+                                }
+                            }
+                        }
+                    })
+                    Box(Modifier.align(Alignment.BottomCenter)) { BottomDock("home", backdrop) {} }
+                }
+            }
+        }
+        ui.waitForIdle()
+        val bounds = ui.onNodeWithTag("dock-surface").getUnclippedBoundsInRoot()
+        fun capture(name: String): Pair<Float, Float> {
+            val image = ui.onNodeWithTag("dock-surface").captureToImage()
+            File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), name)
+                .outputStream().use { image.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            val pixels = image.toPixelMap()
+            val scale = pixels.height / (bounds.bottom - bounds.top).value
+            val edge = pixels[pixels.width / 2, (6f * scale).toInt()]
+            val middle = pixels[pixels.width / 2, (pixels.height * 0.60f).toInt()]
+            return (edge.green - edge.red) to middle.luminance()
+        }
+        val (greenEdge, brightMiddle) = capture("outer-optics-edge.png")
+        assertTrue("Outer Dock must preserve a moving page detail through its optical shoulder", greenEdge > 0.025f)
+        assertTrue("The interior must stay bright on white content", brightMiddle > 0.93f)
+        ui.runOnIdle { scroll.value = -30f }
+        ui.waitForIdle()
+        val (clearEdge, clearMiddle) = capture("outer-optics-scrolled.png")
+        assertTrue("The refracted detail must follow scrolling rather than a painted grey edge", greenEdge - clearEdge > 0.025f)
+        assertTrue("Scrolling must preserve the bright interior", clearMiddle > 0.93f)
+        ui.runOnIdle { darkContent.value = true }
+        ui.waitForIdle()
+        val (_, inkMiddle) = capture("outer-optics-ink.png")
+        assertTrue("Dark page lettering must not turn the middle into conspicuous ghost text", inkMiddle > 0.83f)
+        org.junit.Assert.assertEquals("Refraction must not change Dock height, placement or outline bounds", bounds,
+            ui.onNodeWithTag("dock-surface").getUnclippedBoundsInRoot())
     }
 
     @Test fun refractionBendsBackgroundNearEdgeWithoutWarpingTheCenter() {
@@ -173,7 +235,7 @@ class DockGlassTest {
         var density=1f
         ui.setContent {
             val layer=androidx.compose.ui.graphics.rememberGraphicsLayer()
-            val refraction=androidx.compose.runtime.remember { DockRefraction(1f) }
+            val refraction=androidx.compose.runtime.remember { DockSurfaceRefraction(1f) }
             Box(Modifier.size(160.dp,80.dp).testTag("refraction-proof")
                 .then(Modifier.drawBehind {
                     density=this.density
@@ -189,8 +251,8 @@ class DockGlassTest {
                     }
                     layer.renderEffect=refraction.update(Offset(40.dp.toPx(),16.dp.toPx()),
                         Size(80.dp.toPx(),48.dp.toPx()),
-                        dockLensOutline(Offset(40.dp.toPx(),16.dp.toPx()), Size(80.dp.toPx(),48.dp.toPx()),20.dp.toPx()),
-                        Offset.Zero,if(bending.value)4.dp.toPx()else 0f)
+                        20.dp.toPx(), 10.dp.toPx(), if(bending.value)4.dp.toPx()else 0f,
+                        Color.White, true)
                     drawLayer(layer)
                 }))
         }
@@ -210,6 +272,10 @@ class DockGlassTest {
         println("Refraction pixel difference: edge=$edge, center=$center")
         assertTrue("The edge must bend actual background samples",edge>0.02f)
         assertTrue("Bending must fade out in the center",center<0.01f)
+        val rimX = (40f * density).toInt()
+        val rimY = (40f * density).toInt()
+        val rimDelta = abs(before[rimX, rimY].green - after[rimX, rimY].green)
+        assertTrue("Refraction must join the unchanged page at the exact rim without a sampling jump", rimDelta < 0.01f)
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),
             "glass-refraction-proof.png").outputStream().use {
             afterImage.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)
@@ -308,7 +374,7 @@ class DockGlassTest {
             val body = pixels[pixels.width / 2, y].luminance()
             val selected = pixels[pixels.width / 10, y].luminance()
             if (index == 0) {
-                assertTrue("Edge frosting must leave the white-backed middle bright", body > 0.96f)
+                assertTrue("Edge frosting must leave the white-backed middle bright", body > 0.93f)
             }
             println("glass contrast: background=${color.luminance()}, body=$body, selected=$selected")
             // Frost can share a grey page's tone; its upper rim-to-shoulder contrast

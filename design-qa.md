@@ -148,3 +148,35 @@ Source visual truth：0.2.12已接受的白色分组/蓝色文字操作行，doc
 无待修复P0/P1/P2按钮样式问题。条件出现的远程/诊断等动作由同一组件、源码清单与相关状态交互测试覆盖，未连接真实远程控制器或实体手机。
 
 final result: passed
+
+## 2026-10-25 Dock reference material calibration
+
+Reference: `/var/folders/sp/90pk0ss17bj66n2wcc3fgx1h0000gn/T/codex-clipboard-e626b1b2-0f2d-4d12-8d87-751ce8659b5f.png` (870×610). Native Compose fixture: 390dp × 285.59dp at density 3, captured 1170×857 and normalized to the 833px content width after removing the reference's 37px pillar. The two-tab fixture measures material only; the shipped app retains five tabs and its existing height/radii.
+
+Implementation and comparison artifacts: `dist/qa-dock-reference-match/reference-final.png`, `comparison-final.png`, `comparison-before.png`, `phone-dock.png`, `phone-scroll.mp4`, `scroll-grid.png`. The shared native `dockGlassSurface` is rendered over a reconstructed photo row made from the reference's unobscured thumbnail. Covered source pixels cannot be recovered exactly; this is not a pixel-identical background or a screenshot painted over the app. No generated replacement artwork was used.
+
+Observed and corrected:
+- P1: previous 4dp blur and 58% shoulder coating created narrow dark arcs and horizontal lettering streaks. Broad 10dp sampling with 78–82% white coating now transmits low-frequency photo colour gently across the body and shoulder. The source remains live and separate from foreground controls.
+- P2: a white-on-white perimeter had insufficient separation. A cached 8dp soft halo, 1.4dp white rim and faintly off-white body supply separation without adding a grey inset groove.
+- P2: opaque selection hid all photo response. A 6.5% neutral shade over the same frosted body preserves selection contrast while retaining background colour. Dark-theme selection remains unchanged.
+- Surrounding content keeps a lighter 2dp softening and gradual white fade; it is independent of the inner optical material. No changes to Dock height, corner radius, tab labels, production icons or horizontal stretch geometry.
+
+Verification:
+- Build, Android lint and `git diff --check` passed. All 12 native tests passed: reference fixture, eight material/foreground/source tests and three motion tests.
+- Assertions were recalibrated for the reference's softer response: a 6dp green detail still changes the live optical edge by >0.025 RGB; blank-body luminance >0.93; edge stripes soften while retaining detail; refraction at the exact boundary remains continuous. Text suppression uses thin letter-sized strokes rather than a 26dp opaque image-sized slab, since the reference deliberately transmits broad image colour. Tests also retain fixed geometry, large-font label and selection-contrast checks.
+- Wireless upgrade returned Success on the physical phone. UI-tree-driven proxy-list swipes were recorded, and the affected Dock frames were visually inspected. Modern gfxinfo reports 1 janky frame / 554 frames (0.18%); legacy count differs (252), so this brief run does not establish generally jank-free behavior.
+- Computer Use inventory did not expose the emulator/phone as a native target; the Android QA skill's adb UI-tree, input and capture workflow supplied actual-device interaction evidence.
+
+Remaining fidelity limitation (P2): identical hidden source imagery and Xiaomi's proprietary rendering parameters are unavailable. The static photo comparison is materially closer, but the exact video-time refraction and full surrounding fade are not established as identical. Reference fixture fonts/icons are native stand-ins; production app retains its own functional labels/icons. No claim of complete replication is made.
+
+final result: blocked
+
+## 2026-10-25 Follow-up: approaching text must not blur early
+
+User reference: `/var/folders/sp/90pk0ss17bj66n2wcc3fgx1h0000gn/T/codex-clipboard-3f29a78e-664c-4f11-908f-b9aa7c153337.png`. The red box identifies the full-width strip above the capsule, where letters became defocused before entering the glass.
+
+Removed the 24dp pre-entry blur region. The lower-page blur now starts at the capsule top and transitions over 12dp below it. The existing white fade remains independent, so approaching text can brighten without losing sharp edges. Inner sampling, perimeter, size, corner radii and animation were not changed by this follow-up.
+
+Validation: build, lint and 11 material/motion instrumentation tests passed. The approaching-content test now checks retention of sharp high-frequency detail above the capsule; source fading and optical sampling remain separately tested. `dist/qa-dock-outer-clarity/ambient-fixture.png` shows sharp vertical boundaries above the top edge. Wireless installation returned Success; phone scroll captures are saved in the same directory. Overall exact Xiaomi material fidelity remains unverified as documented in the prior section.
+
+final result: blocked
