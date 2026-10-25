@@ -337,6 +337,40 @@ class DockGlassTest {
         assertTrue("Contour must fit bounded shader uniforms", largest <= DockContourCapacity)
     }
 
+    @Test fun darkGlassHasQuietRimAndRetainsBrightBackdropResponse() {
+        val background = mutableStateOf(Color.Black)
+        ui.setContent {
+            ClashTheme("dark") {
+                val backdrop = rememberDockBackdrop()
+                Box(Modifier.fillMaxSize().background(background.value)) {
+                    Box(Modifier.fillMaxSize().dockBackdropSource(backdrop, background.value))
+                    Box(Modifier.align(Alignment.BottomCenter)) { BottomDock("settings", backdrop) {} }
+                }
+            }
+        }
+        ui.waitForIdle()
+        fun capture(name: String): androidx.compose.ui.graphics.PixelMap {
+            val image = ui.onNodeWithTag("dock-surface").captureToImage()
+            File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), name)
+                .outputStream().use { image.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG,100,it) }
+            return image.toPixelMap()
+        }
+        val black = capture("dark-glass-black.png")
+        val x = black.width / 2
+        val body = black[x, (black.height * .60f).toInt()].red
+        val shoulder = ((black.height * .06f).toInt()..(black.height * .12f).toInt()).maxOf { black[x,it].red }
+        assertTrue("Black-backed glass must remain near-black rather than washed grey", body in .04f.. .12f)
+        assertTrue("Dark glass must not form a raised bright inner rim", shoulder - body < .025f)
+        val selection = black[(black.width * .9f).toInt(), (black.height * .60f).toInt()].red
+        assertTrue("The selected tab must remain distinct", selection - body > .06f)
+        ui.runOnIdle { background.value = Color.White }
+        ui.waitForIdle()
+        val white = capture("dark-glass-bright.png")
+        val response = white[x, (white.height * .60f).toInt()].red - body
+        assertTrue("Bright thumbnails must still transmit through dark glass", response > .06f)
+        assertTrue("Bright backgrounds must not wash out the dark material", response < .30f)
+    }
+
     @Test fun capsuleAndSelectionRemainDistinctOnWhiteAndLightGrey() {
         val background = mutableStateOf(Color.White)
         ui.setContent {

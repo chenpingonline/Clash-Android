@@ -135,6 +135,7 @@ internal class DockSurfaceRefraction(blurPixels: Float) {
         uniform float amount;
         uniform float3 tint;
         uniform float2 veil;
+        uniform float2 reflectionStrength;
         half4 main(float2 coord) {
             float2 p = coord - origin - halfSize;
             float2 q = abs(p) - (halfSize - radius);
@@ -160,7 +161,7 @@ internal class DockSurfaceRefraction(blurPixels: Float) {
             color.rgb = mix(color.rgb, half3(tint), half(coating));
             float upperLight = max(dot(normal, normalize(float2(-0.55, -1.0))), 0.0);
             float lowerLight = max(dot(normal, normalize(float2(0.55, 1.0))), 0.0);
-            float reflection = (upperLight * 0.14 + lowerLight * 0.06) * edge * edge;
+            float reflection = (upperLight * reflectionStrength.x + lowerLight * reflectionStrength.y) * edge * edge;
             color.rgb += (half3(1.0) - color.rgb) * half(reflection);
             return color;
         }
@@ -181,7 +182,8 @@ internal class DockSurfaceRefraction(blurPixels: Float) {
         shader.setFloatUniform("edgeBand", band)
         shader.setFloatUniform("amount", amount)
         shader.setFloatUniform("tint", tint.red, tint.green, tint.blue)
-        shader.setFloatUniform("veil", if (light) 0.82f else 0.88f, if (light) 0.78f else 0.58f)
+        shader.setFloatUniform("veil", if (light) 0.82f else 0.84f, if (light) 0.78f else 0.84f)
+        shader.setFloatUniform("reflectionStrength", if (light) 0.14f else 0.012f, if (light) 0.06f else 0.006f)
         cached = RenderEffect.createChainEffect(RenderEffect.createRuntimeShaderEffect(shader, "page"), blur)
             .asComposeRenderEffect()
         previous = parameters

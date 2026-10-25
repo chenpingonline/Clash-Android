@@ -143,7 +143,7 @@ internal fun Modifier.dockGlassSurface(glass: DockGlass, tint: Color, cornerRadi
             }
             if (Build.VERSION.SDK_INT >= 33) {
                 glass.layer.renderEffect = glass.surfaceRefraction!!.update(Offset(margin, margin), size,
-                    cornerRadius.toPx(), 12.dp.toPx(), 3.dp.toPx(), if (light) Color(0xFFFAFAFA) else tint, light)
+                    cornerRadius.toPx(), 12.dp.toPx(), 3.dp.toPx(), if (light) Color(0xFFFAFAFA) else Color(0xFF171717), light)
             }
             glass.layer.record(androidx.compose.ui.unit.Density(density,fontScale), layoutDirection,
                 IntSize((size.width + margin * 2).roundToInt(), (size.height + margin * 2).roundToInt())) {
@@ -166,11 +166,11 @@ internal fun Modifier.dockGlassSurface(glass: DockGlass, tint: Color, cornerRadi
         // API 33+ coats the centre and rim separately in the optical shader.
         // Older devices retain a light-frost fallback with the same fixed outline.
         if (!(glass.ready && opticalSurface)) {
-            drawRect(tint.copy(alpha = if (glass.ready) { if(light) 0.64f else 0.72f } else 0.96f))
+            drawRect((if (light) tint else Color(0xFF171717)).copy(alpha = if (glass.ready) { if(light) 0.64f else 0.84f } else 0.96f))
         }
         drawRect(Color.Black.copy(alpha = if (light) 0.012f else 0.025f))
-        drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (light) 0.12f else 0.035f),
-            Color.White.copy(alpha = 0.025f), tint.copy(alpha = 0.08f))))
+        drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (light) 0.12f else 0f),
+            Color.White.copy(alpha = if (light) 0.025f else 0f), (if (light) tint else Color(0xFF171717)).copy(alpha = 0.08f))))
         drawContent()
         val radius = cornerRadius.toPx()
         // One white perimeter, with a broad low-contrast frosted shoulder inside.
@@ -178,9 +178,9 @@ internal fun Modifier.dockGlassSurface(glass: DockGlass, tint: Color, cornerRadi
         val stroke = (if (light) 1.4.dp else 0.8.dp).toPx()
         val inset = stroke / 2
         val rim = Brush.verticalGradient(listOf(
-            Color.White.copy(alpha = if (light) 0.82f else 0.18f),
-            Color.White.copy(alpha = if (light) 0.40f else 0.04f),
-            if (light) Color.White.copy(alpha = 0.60f) else Color.Black.copy(alpha = 0.18f)),
+            Color.White.copy(alpha = if (light) 0.82f else 0.10f),
+            Color.White.copy(alpha = if (light) 0.40f else 0.085f),
+            if (light) Color.White.copy(alpha = 0.60f) else Color.White.copy(alpha = 0.075f)),
             startY = 0f, endY = size.height)
         if (light && !opticalSurface) {
             val shoulder = 3.dp.toPx()
@@ -191,7 +191,7 @@ internal fun Modifier.dockGlassSurface(glass: DockGlass, tint: Color, cornerRadi
         drawRoundRect(rim, Offset(inset, inset), Size(size.width - stroke, size.height - stroke),
             CornerRadius((radius - inset).coerceAtLeast(0f)), style = Stroke(stroke))
         // A small upper-left catchlight, rather than a uniformly bright outline.
-        drawRoundRect(Brush.radialGradient(listOf(Color.White.copy(alpha=if(light)0.12f else 0.16f),
+        drawRoundRect(Brush.radialGradient(listOf(Color.White.copy(alpha=if(light)0.12f else 0f),
             Color.Transparent),Offset(size.width*0.18f,0f),size.height*2.2f),
             Offset(inset,inset),Size(size.width-stroke,size.height-stroke),
             CornerRadius(cornerRadius.toPx()),style=Stroke(1.25.dp.toPx()))
