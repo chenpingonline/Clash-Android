@@ -1,0 +1,12 @@
+VPNs:
+  0: cn.nascp.clash.dev
+    Active package name: cn.nascp.clash.dev
+    Active vpn type: 1
+    NetworkCapabilities: [ Transports: VPN Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED TransportInfo: <VpnTransportInfo{type=1, sessionId=Clash · Always-on QA, bypassable=false longLivedTcpConnectionsExpensive=false}> Uids: <{0-99999}> OwnerUid: 10217 AdminUids: [10217] UnderlyingNetworks: Null]
+    
+    mCachedCarrierConfigInfoPerSubId={}
+    mEventChanges (most recent first):
+      2026-10-24T00:18:15.090384 - [UnderlyingNW] Switch to null
+      2026-10-24T00:17:05.785805 - [UnderlyingNW] Switch to null
+      2026-10-24T00:17:02.351084 - [LockdownAlwaysOn] Mode changed: lockdown=true alwaysOn=true calling from 1000
+  

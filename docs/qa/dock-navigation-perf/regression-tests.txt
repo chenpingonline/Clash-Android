@@ -1,0 +1,12 @@
+
+cn.nascp.clash.DockMotionTest:..
+cn.nascp.clash.MotionNavigationTest:.
+cn.nascp.clash.ProxyNavigationTest:.
+cn.nascp.clash.ProxyLayoutTest:......
+cn.nascp.clash.ProxyRuntimeTest:.
+
+Time: 34.91
+
+OK (11 tests)
+
+

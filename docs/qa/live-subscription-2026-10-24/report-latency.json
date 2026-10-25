@@ -1,0 +1,308 @@
+{
+  "environment": "Android 16 arm64 emulator",
+  "userAgent": "CMFA",
+  "geodataSeededFromLocalFixture": true,
+  "stage": "finished",
+  "baseline": {
+    "error": "ConnectException",
+    "elapsedMs": 140
+  },
+  "download": {
+    "success": true,
+    "bytes": 517321,
+    "elapsedMs": 2186
+  },
+  "validation": {
+    "success": true,
+    "proxiesAndGroups": 86,
+    "rules": 9263
+  },
+  "vpnStarted": true,
+  "nodeCount": 70,
+  "testedNodes": 70,
+  "latency": [
+    {
+      "node": "Node-001",
+      "delayMs": 304
+    },
+    {
+      "node": "Node-002",
+      "delayMs": 298
+    },
+    {
+      "node": "Node-003",
+      "delayMs": 304
+    },
+    {
+      "node": "Node-004",
+      "delayMs": 301
+    },
+    {
+      "node": "Node-005",
+      "delayMs": 301
+    },
+    {
+      "node": "Node-006",
+      "delayMs": 1161
+    },
+    {
+      "node": "Node-007",
+      "delayMs": 271
+    },
+    {
+      "node": "Node-008",
+      "delayMs": 293
+    },
+    {
+      "node": "Node-009",
+      "delayMs": 253
+    },
+    {
+      "node": "Node-010",
+      "delayMs": 316
+    },
+    {
+      "node": "Node-011",
+      "delayMs": 339
+    },
+    {
+      "node": "Node-012",
+      "delayMs": 96
+    },
+    {
+      "node": "Node-013",
+      "delayMs": 101
+    },
+    {
+      "node": "Node-014",
+      "delayMs": 94
+    },
+    {
+      "node": "Node-015",
+      "delayMs": 99
+    },
+    {
+      "node": "Node-016",
+      "delayMs": 97
+    },
+    {
+      "node": "Node-017",
+      "delayMs": 93
+    },
+    {
+      "node": "Node-018",
+      "delayMs": 299
+    },
+    {
+      "node": "Node-019",
+      "delayMs": 102
+    },
+    {
+      "node": "Node-020",
+      "delayMs": 97
+    },
+    {
+      "node": "Node-021",
+      "delayMs": 94
+    },
+    {
+      "node": "Node-022",
+      "delayMs": 331
+    },
+    {
+      "node": "Node-023",
+      "delayMs": 329
+    },
+    {
+      "node": "Node-024",
+      "delayMs": 322
+    },
+    {
+      "node": "Node-025",
+      "delayMs": 329
+    },
+    {
+      "node": "Node-026",
+      "delayMs": 323
+    },
+    {
+      "node": "Node-027",
+      "delayMs": 49
+    },
+    {
+      "node": "Node-028",
+      "delayMs": 54
+    },
+    {
+      "node": "Node-029",
+      "delayMs": 52
+    },
+    {
+      "node": "Node-030",
+      "delayMs": 51
+    },
+    {
+      "node": "Node-031",
+      "delayMs": 47
+    },
+    {
+      "node": "Node-032",
+      "delayMs": 176
+    },
+    {
+      "node": "Node-033",
+      "delayMs": 203
+    },
+    {
+      "node": "Node-034",
+      "delayMs": 191
+    },
+    {
+      "node": "Node-035",
+      "delayMs": 201
+    },
+    {
+      "node": "Node-036",
+      "delayMs": 155
+    },
+    {
+      "node": "Node-037",
+      "delayMs": 164
+    },
+    {
+      "node": "Node-038",
+      "delayMs": 171
+    },
+    {
+      "node": "Node-039",
+      "delayMs": 167
+    },
+    {
+      "node": "Node-040",
+      "delayMs": 368
+    },
+    {
+      "node": "Node-041",
+      "delayMs": 357
+    },
+    {
+      "node": "Node-042",
+      "delayMs": 333
+    },
+    {
+      "node": "Node-043",
+      "delayMs": 315
+    },
+    {
+      "node": "Node-044",
+      "delayMs": 272
+    },
+    {
+      "node": "Node-045",
+      "delayMs": 59
+    },
+    {
+      "node": "Node-046",
+      "delayMs": null
+    },
+    {
+      "node": "Node-047",
+      "delayMs": 42
+    },
+    {
+      "node": "Node-048",
+      "delayMs": 180
+    },
+    {
+      "node": "Node-049",
+      "delayMs": 1983
+    },
+    {
+      "node": "Node-050",
+      "delayMs": 657
+    },
+    {
+      "node": "Node-051",
+      "delayMs": 215
+    },
+    {
+      "node": "Node-052",
+      "delayMs": 171
+    },
+    {
+      "node": "Node-053",
+      "delayMs": 690
+    },
+    {
+      "node": "Node-054",
+      "delayMs": 253
+    },
+    {
+      "node": "Node-055",
+      "delayMs": 1586
+    },
+    {
+      "node": "Node-056",
+      "delayMs": 161
+    },
+    {
+      "node": "Node-057",
+      "delayMs": 164
+    },
+    {
+      "node": "Node-058",
+      "delayMs": 170
+    },
+    {
+      "node": "Node-059",
+      "delayMs": 163
+    },
+    {
+      "node": "Node-060",
+      "delayMs": 182
+    },
+    {
+      "node": "Node-061",
+      "delayMs": 197
+    },
+    {
+      "node": "Node-062",
+      "delayMs": 191
+    },
+    {
+      "node": "Node-063",
+      "delayMs": 182
+    },
+    {
+      "node": "Node-064",
+      "delayMs": 212
+    },
+    {
+      "node": "Node-065",
+      "delayMs": 163
+    },
+    {
+      "node": "Node-066",
+      "delayMs": 171
+    },
+    {
+      "node": "Node-067",
+      "delayMs": 172
+    },
+    {
+      "node": "Node-068",
+      "delayMs": 201
+    },
+    {
+      "node": "Node-069",
+      "delayMs": null
+    },
+    {
+      "node": "Node-070",
+      "delayMs": null
+    }
+  ],
+  "responsiveNodes": 67,
+  "completed": true,
+  "scope": "download and all-node latency; use the separate fresh-connection report for real access"
+}

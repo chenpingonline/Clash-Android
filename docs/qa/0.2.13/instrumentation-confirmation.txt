@@ -1,0 +1,8 @@
+
+cn.nascp.clash.FeedbackUiTest:.
+
+Time: 11.782
+
+OK (1 test)
+
+

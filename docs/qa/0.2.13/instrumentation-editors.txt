@@ -1,0 +1,9 @@
+
+cn.nascp.clash.PageCoverageTest:.
+cn.nascp.clash.EditorInteractionTest:.
+
+Time: 14.709
+
+OK (2 tests)
+
+

@@ -1,0 +1,105 @@
+
+cn.nascp.clash.PageCoverageTest:
+Error in secondaryPagesRenderInBothThemes(cn.nascp.clash.PageCoverageTest):
+java.lang.AssertionError: Action performScrollTo() failed.
+Reason: Expected exactly '1' node but found '2' nodes that satisfy: ((Text + InputText + EditableText contains '首次使用' (ignoreCase: false)) && (OnClick is defined))
+Nodes found:
+1) Node #211 at (l=90.0, t=1011.0, r=1080.0, b=1155.0)px
+Focused = 'false'
+Text = '[首次使用]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 1 sibling
+2) Node #229 at (l=90.0, t=2083.0, r=1080.0, b=2251.0)px
+Focused = 'false'
+Text = '[首次使用, 本机管理]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 30 siblings
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:81)
+	at cn.nascp.clash.PageCoverageTest.secondaryPagesRenderInBothThemes(PageCoverageTest.kt:39)
+
+Error in emptyProfilePagesHaveRecoverableStates(cn.nascp.clash.PageCoverageTest):
+java.lang.AssertionError: Action performScrollTo() failed.
+Reason: Expected exactly '1' node but found '2' nodes that satisfy: ((Text + InputText + EditableText contains '首次使用' (ignoreCase: false)) && (OnClick is defined))
+Nodes found:
+1) Node #656 at (l=90.0, t=1011.0, r=1080.0, b=1155.0)px
+Focused = 'false'
+Text = '[首次使用]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 1 sibling
+2) Node #674 at (l=90.0, t=2083.0, r=1080.0, b=2251.0)px
+Focused = 'false'
+Text = '[首次使用, 本机管理]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 30 siblings
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:81)
+	at cn.nascp.clash.PageCoverageTest.emptyProfilePagesHaveRecoverableStates(PageCoverageTest.kt:83)
+
+cn.nascp.clash.EditorInteractionTest:.
+cn.nascp.clash.PlainThemeTest:..
+cn.nascp.clash.SubscriptionUiTest:..
+cn.nascp.clash.DocumentFlowTest:.
+cn.nascp.clash.FeedbackUiTest:.
+
+Time: 39.073
+There were 2 failures:
+1) secondaryPagesRenderInBothThemes(cn.nascp.clash.PageCoverageTest)
+java.lang.AssertionError: Action performScrollTo() failed.
+Reason: Expected exactly '1' node but found '2' nodes that satisfy: ((Text + InputText + EditableText contains '首次使用' (ignoreCase: false)) && (OnClick is defined))
+Nodes found:
+1) Node #211 at (l=90.0, t=1011.0, r=1080.0, b=1155.0)px
+Focused = 'false'
+Text = '[首次使用]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 1 sibling
+2) Node #229 at (l=90.0, t=2083.0, r=1080.0, b=2251.0)px
+Focused = 'false'
+Text = '[首次使用, 本机管理]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 30 siblings
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:81)
+	at cn.nascp.clash.PageCoverageTest.secondaryPagesRenderInBothThemes(PageCoverageTest.kt:39)
+2) emptyProfilePagesHaveRecoverableStates(cn.nascp.clash.PageCoverageTest)
+java.lang.AssertionError: Action performScrollTo() failed.
+Reason: Expected exactly '1' node but found '2' nodes that satisfy: ((Text + InputText + EditableText contains '首次使用' (ignoreCase: false)) && (OnClick is defined))
+Nodes found:
+1) Node #656 at (l=90.0, t=1011.0, r=1080.0, b=1155.0)px
+Focused = 'false'
+Text = '[首次使用]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 1 sibling
+2) Node #674 at (l=90.0, t=2083.0, r=1080.0, b=2251.0)px
+Focused = 'false'
+Text = '[首次使用, 本机管理]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 30 siblings
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:81)
+	at cn.nascp.clash.PageCoverageTest.emptyProfilePagesHaveRecoverableStates(PageCoverageTest.kt:83)
+
+FAILURES!!!
+Tests run: 9,  Failures: 2
+
+

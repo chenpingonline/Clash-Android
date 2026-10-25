@@ -1,0 +1,68 @@
+[
+  {
+    "stage": "before",
+    "run": 0,
+    "frames": 43,
+    "janky": 28,
+    "p50_ms": 57,
+    "p90_ms": 133,
+    "p95_ms": 150,
+    "p99_ms": 200,
+    "jank_percent": 65.12
+  },
+  {
+    "stage": "before",
+    "run": 1,
+    "frames": 52,
+    "janky": 30,
+    "p50_ms": 53,
+    "p90_ms": 77,
+    "p95_ms": 121,
+    "p99_ms": 150,
+    "jank_percent": 57.69
+  },
+  {
+    "stage": "before",
+    "run": 2,
+    "frames": 51,
+    "janky": 31,
+    "p50_ms": 57,
+    "p90_ms": 65,
+    "p95_ms": 101,
+    "p99_ms": 125,
+    "jank_percent": 60.78
+  },
+  {
+    "stage": "after",
+    "run": 0,
+    "frames": 56,
+    "janky": 33,
+    "p50_ms": 61,
+    "p90_ms": 81,
+    "p95_ms": 89,
+    "p99_ms": 105,
+    "jank_percent": 58.93
+  },
+  {
+    "stage": "after",
+    "run": 1,
+    "frames": 56,
+    "janky": 30,
+    "p50_ms": 57,
+    "p90_ms": 73,
+    "p95_ms": 81,
+    "p99_ms": 89,
+    "jank_percent": 53.57
+  },
+  {
+    "stage": "after",
+    "run": 2,
+    "frames": 55,
+    "janky": 31,
+    "p50_ms": 57,
+    "p90_ms": 73,
+    "p95_ms": 77,
+    "p99_ms": 81,
+    "jank_percent": 56.36
+  }
+]

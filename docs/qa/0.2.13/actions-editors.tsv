@@ -1,0 +1,9 @@
+theme	language	scale	page	actions	disabled	labels
+plain	zh	1.0	group	7	1	YAML 编辑 | 恢复原始项 | 编辑 | 移除 | 上移 | 写入待保存列表 | 校验并保存
+plain	zh	1.0	node-edit	4	0	YAML 编辑 | 恢复原始项 | 写入待保存列表 | 校验并保存
+plain	zh	1.0	group-edit	7	1	YAML 编辑 | 恢复原始项 | 编辑 | 移除 | 上移 | 写入待保存列表 | 校验并保存
+plain	zh	1.0	rule-edit	7	1	YAML 编辑 | 恢复原始项 | 编辑 | 移除 | 上移 | 写入待保存列表 | 校验并保存
+plain	en	1.5	group	7	1	Edit YAML | Restore source items | Edit | Remove | Move up | Add to pending list | Validate & save
+plain	en	1.5	node-edit	4	0	Edit YAML | Restore source items | Add to pending list | Validate & save
+plain	en	1.5	group-edit	7	1	Edit YAML | Restore source items | Edit | Remove | Move up | Add to pending list | Validate & save
+plain	en	1.5	rule-edit	7	1	Edit YAML | Restore source items | Edit | Remove | Move up | Add to pending list | Validate & save

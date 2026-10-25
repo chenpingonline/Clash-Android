@@ -1,0 +1,8 @@
+
+cn.nascp.clash.DockGlassTest:...
+
+Time: 5.387
+
+OK (3 tests)
+
+

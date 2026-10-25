@@ -1,0 +1,65 @@
+theme	language	scale	page	actions	disabled	labels
+plain	zh	1.0	setup	2	0	添加配置 | 启动 VPN
+plain	zh	1.0	group	7	1	YAML 编辑 | 恢复原始项 | 编辑 | 移除 | 上移 | 写入待保存列表 | 校验并保存
+plain	zh	1.0	node-edit	4	0	YAML 编辑 | 恢复原始项 | 写入待保存列表 | 校验并保存
+plain	zh	1.0	group-edit	7	1	YAML 编辑 | 恢复原始项 | 编辑 | 移除 | 上移 | 写入待保存列表 | 校验并保存
+plain	zh	1.0	import	3	1	校验 | 保存配置 | 填入直连验证示例
+plain	zh	1.0	profile	1	0	删除配置
+plain	zh	1.0	profile-info	1	0	保存订阅信息
+plain	zh	1.0	rules	0	0	
+plain	zh	1.0	rule-edit	7	1	YAML 编辑 | 恢复原始项 | 编辑 | 移除 | 上移 | 写入待保存列表 | 校验并保存
+plain	zh	1.0	rule-import	2	0	选择规则文件 | 解析并预览
+plain	zh	1.0	rule-set	3	0	高级 YAML 编辑 | 校验并保存 | 读取运行中的规则集
+plain	zh	1.0	override	2	0	校验并保存增强 | 预览合并结果
+plain	zh	1.0	script	2	0	校验并保存增强 | 预览合并结果
+plain	zh	1.0	yaml	2	0	校验配置 | 校验并保存
+plain	zh	1.0	history	0	0	
+plain	zh	1.0	connection	1	1	关闭连接
+plain	zh	1.0	vpn	2	0	启动 VPN | 保存 VPN 设置
+plain	zh	1.0	apps	1	0	保存应用选择
+plain	zh	1.0	network	2	0	高级 YAML 编辑 | 校验并保存
+plain	zh	1.0	dns	2	0	高级 YAML 编辑 | 校验并保存
+plain	zh	1.0	dns-servers	2	0	高级 YAML 编辑 | 校验并保存
+plain	zh	1.0	fakeip	2	0	高级 YAML 编辑 | 校验并保存
+plain	zh	1.0	fallback	2	0	高级 YAML 编辑 | 校验并保存
+plain	zh	1.0	hosts	2	0	高级 YAML 编辑 | 校验并保存
+plain	zh	1.0	core	3	1	校验当前配置 | 重启并应用配置 | 保存测速参数
+plain	zh	1.0	geo	3	1	高级 YAML 编辑 | 校验并保存 | 更新 GEO 数据
+plain	zh	1.0	automation	5	0	保存更新计划 | 立即更新所有订阅 | 系统电池设置 | 系统始终开启 VPN 设置 | 通知设置
+plain	zh	1.0	appearance	0	0	
+plain	zh	1.0	backup	3	0	导出完整备份 | 导出当前 YAML | 选择备份并校验
+plain	zh	1.0	about	1	0	开源许可与来源
+plain	zh	1.0	remote	3	1	测试并保存 | 新增实例 | 刷新远程数据
+plain	zh	1.0	diagnostics	1	0	导出诊断 ZIP
+plain	en	1.5	setup	2	0	Add profile | Start VPN
+plain	en	1.5	group	7	1	Edit YAML | Restore source items | Edit | Remove | Move up | Add to pending list | Validate & save
+plain	en	1.5	node-edit	4	0	Edit YAML | Restore source items | Add to pending list | Validate & save
+plain	en	1.5	group-edit	7	1	Edit YAML | Restore source items | Edit | Remove | Move up | Add to pending list | Validate & save
+plain	en	1.5	import	3	1	Validate | Save profile | Use direct-routing test profile
+plain	en	1.5	profile	1	0	Delete profile
+plain	en	1.5	profile-info	1	0	Save subscription
+plain	en	1.5	rules	0	0	
+plain	en	1.5	rule-edit	7	1	Edit YAML | Restore source items | Edit | Remove | Move up | Add to pending list | Validate & save
+plain	en	1.5	rule-import	2	0	Choose rule file | Parse & preview
+plain	en	1.5	rule-set	3	0	Advanced YAML editor | Validate & save | Load active rule providers
+plain	en	1.5	override	2	0	Validate & save extension | Preview merged configuration
+plain	en	1.5	script	2	0	Validate & save extension | Preview merged configuration
+plain	en	1.5	yaml	2	0	Validate configuration | Validate & save
+plain	en	1.5	history	0	0	
+plain	en	1.5	connection	1	1	Close connection
+plain	en	1.5	vpn	2	0	Start VPN | Save VPN settings
+plain	en	1.5	apps	1	0	Save app selection
+plain	en	1.5	network	2	0	Advanced YAML editor | Validate & save
+plain	en	1.5	dns	2	0	Advanced YAML editor | Validate & save
+plain	en	1.5	dns-servers	2	0	Advanced YAML editor | Validate & save
+plain	en	1.5	fakeip	2	0	Advanced YAML editor | Validate & save
+plain	en	1.5	fallback	2	0	Advanced YAML editor | Validate & save
+plain	en	1.5	hosts	2	0	Advanced YAML editor | Validate & save
+plain	en	1.5	core	3	1	Validate current profile | Restart and apply | Save test settings
+plain	en	1.5	geo	3	1	Advanced YAML editor | Validate & save | Update GEO databases
+plain	en	1.5	automation	5	0	Save schedule | Update all subscriptions now | Battery settings | Always-on VPN settings | Notification settings
+plain	en	1.5	appearance	1	0	Reset
+plain	en	1.5	backup	3	0	Export backup | 导出当前 YAML | Select and validate backup
+plain	en	1.5	about	1	0	Licenses and sources
+plain	en	1.5	remote	3	1	Test & save | New instance | Refresh remote data
+plain	en	1.5	diagnostics	1	0	Export diagnostics ZIP

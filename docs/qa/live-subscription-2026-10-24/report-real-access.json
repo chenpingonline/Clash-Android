@@ -1,0 +1,230 @@
+{
+  "environment": "Android 16 arm64 emulator",
+  "userAgent": "CMFA",
+  "geodataSeededFromLocalFixture": true,
+  "stage": "finished",
+  "baseline": {
+    "error": "ConnectException",
+    "elapsedMs": 58
+  },
+  "download": {
+    "success": true,
+    "bytes": 517321,
+    "elapsedMs": 2173
+  },
+  "validation": {
+    "success": true,
+    "proxiesAndGroups": 86,
+    "rules": 9263
+  },
+  "vpnStarted": true,
+  "nodeCount": 70,
+  "testedNodes": 3,
+  "latency": [
+    {
+      "node": "Node-027",
+      "delayMs": 50
+    },
+    {
+      "node": "Node-031",
+      "delayMs": 52
+    },
+    {
+      "node": "Node-047",
+      "delayMs": 142
+    }
+  ],
+  "responsiveNodes": 3,
+  "connectionsResetBeforeEachNode": true,
+  "realAccess": [
+    {
+      "node": "Node-027",
+      "delayMs": 50,
+      "globalSelectionVerified": true,
+      "tunAccess": [
+        {
+          "status": 204,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 0,
+          "elapsedMs": 251,
+          "site": "www.gstatic.com"
+        },
+        {
+          "status": 200,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 65536,
+          "elapsedMs": 602,
+          "expectedContent": true,
+          "site": "www.google.com"
+        },
+        {
+          "status": 200,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 65536,
+          "elapsedMs": 355,
+          "expectedContent": true,
+          "site": "www.youtube.com"
+        },
+        {
+          "status": 200,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 209,
+          "elapsedMs": 245,
+          "expectedContent": true,
+          "site": "www.cloudflare.com"
+        },
+        {
+          "status": 403,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 126,
+          "elapsedMs": 250,
+          "expectedContent": false,
+          "site": "www.wikipedia.org"
+        }
+      ],
+      "explicitProxyAccess": {
+        "status": 204,
+        "selectedNodeObservedInCoreConnection": true,
+        "bytesRead": 0,
+        "elapsedMs": 253
+      },
+      "exitCheck": {
+        "status": 200,
+        "bytesRead": 22,
+        "elapsedMs": 510,
+        "exitAddressObtained": true,
+        "differsFromBaseline": null
+      },
+      "throughputSample": {
+        "status": 200,
+        "bytes": 1048576,
+        "elapsedMs": 602,
+        "sampleMbps": 13.934564784053157
+      }
+    },
+    {
+      "node": "Node-031",
+      "delayMs": 52,
+      "globalSelectionVerified": true,
+      "tunAccess": [
+        {
+          "status": 204,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 0,
+          "elapsedMs": 218,
+          "site": "www.gstatic.com"
+        },
+        {
+          "status": 200,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 65536,
+          "elapsedMs": 583,
+          "expectedContent": true,
+          "site": "www.google.com"
+        },
+        {
+          "status": 200,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 65536,
+          "elapsedMs": 369,
+          "expectedContent": true,
+          "site": "www.youtube.com"
+        },
+        {
+          "status": 200,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 216,
+          "elapsedMs": 239,
+          "expectedContent": true,
+          "site": "www.cloudflare.com"
+        },
+        {
+          "status": 403,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 126,
+          "elapsedMs": 221,
+          "expectedContent": false,
+          "site": "www.wikipedia.org"
+        }
+      ],
+      "explicitProxyAccess": {
+        "status": 204,
+        "selectedNodeObservedInCoreConnection": true,
+        "bytesRead": 0,
+        "elapsedMs": 269
+      },
+      "exitCheck": {
+        "status": 200,
+        "bytesRead": 22,
+        "elapsedMs": 484,
+        "exitAddressObtained": true,
+        "differsFromBaseline": null
+      },
+      "throughputSample": {
+        "status": 200,
+        "bytes": 1048576,
+        "elapsedMs": 561,
+        "sampleMbps": 14.952955436720142
+      }
+    },
+    {
+      "node": "Node-047",
+      "delayMs": 142,
+      "globalSelectionVerified": true,
+      "tunAccess": [
+        {
+          "status": 204,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 0,
+          "elapsedMs": 660,
+          "site": "www.gstatic.com"
+        },
+        {
+          "status": 200,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 65536,
+          "elapsedMs": 693,
+          "expectedContent": true,
+          "site": "www.google.com"
+        },
+        {
+          "error": "SSLHandshakeException",
+          "elapsedMs": 213,
+          "site": "www.youtube.com"
+        },
+        {
+          "error": "SSLHandshakeException",
+          "elapsedMs": 148,
+          "site": "www.cloudflare.com"
+        },
+        {
+          "status": 403,
+          "selectedNodeObservedInCoreConnection": true,
+          "bytesRead": 126,
+          "elapsedMs": 1720,
+          "expectedContent": false,
+          "site": "www.wikipedia.org"
+        }
+      ],
+      "explicitProxyAccess": {
+        "status": 204,
+        "selectedNodeObservedInCoreConnection": true,
+        "bytesRead": 0,
+        "elapsedMs": 252
+      },
+      "exitCheck": {
+        "error": "SSLHandshakeException",
+        "elapsedMs": 47,
+        "exitAddressObtained": false,
+        "differsFromBaseline": null
+      },
+      "throughputSample": {
+        "status": 200,
+        "bytes": 1048576,
+        "elapsedMs": 1531,
+        "sampleMbps": 5.479169170476813
+      }
+    }
+  ],
+  "completed": true
+}

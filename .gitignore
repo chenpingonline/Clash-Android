@@ -1,0 +1,38 @@
+# Gradle, Kotlin and local build caches
+.gradle/
+.kotlin/
+.cache/
+**/build/
+
+# Machine-specific Android SDK and IDE configuration
+local.properties
+.idea/
+*.iml
+.externalNativeBuild/
+.cxx/
+
+# Generated packages and native libraries (rebuilt by scripts/build-core.sh)
+/dist/
+/app/src/main/jniLibs/
+*.apk
+*.aab
+*.apks
+
+# Local secrets and signing configuration
+.env
+.env.*
+!.env.example
+!.env.sample
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# OS, editor and Python temporary files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+__pycache__/
+*.py[cod]

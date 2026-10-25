@@ -1,0 +1,23 @@
+
+cn.nascp.clash.DockMotionTest:
+Error in wholeBarAndAllTabCellsKeepTheirBoundsAcrossEveryTabSwitch(cn.nascp.clash.DockMotionTest):
+java.lang.AssertionError: Outer Dock must not resize or shift at proxies/16 expected:<DpRect(left=16.0.dp, top=10.0.dp, right=374.0.dp, bottom=70.666664.dp)> but was:<DpRect(left=12.0.dp, top=10.0.dp, right=378.0.dp, bottom=70.666664.dp)>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at cn.nascp.clash.DockMotionTest.wholeBarAndAllTabCellsKeepTheirBoundsAcrossEveryTabSwitch(DockMotionTest.kt:148)
+
+
+Time: 1.866
+There was 1 failure:
+1) wholeBarAndAllTabCellsKeepTheirBoundsAcrossEveryTabSwitch(cn.nascp.clash.DockMotionTest)
+java.lang.AssertionError: Outer Dock must not resize or shift at proxies/16 expected:<DpRect(left=16.0.dp, top=10.0.dp, right=374.0.dp, bottom=70.666664.dp)> but was:<DpRect(left=12.0.dp, top=10.0.dp, right=378.0.dp, bottom=70.666664.dp)>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at cn.nascp.clash.DockMotionTest.wholeBarAndAllTabCellsKeepTheirBoundsAcrossEveryTabSwitch(DockMotionTest.kt:148)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+

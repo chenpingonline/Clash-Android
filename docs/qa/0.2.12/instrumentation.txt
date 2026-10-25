@@ -1,0 +1,9 @@
+
+cn.nascp.clash.EditorInteractionTest:.
+cn.nascp.clash.PlainThemeTest:..
+
+Time: 22.006
+
+OK (3 tests)
+
+

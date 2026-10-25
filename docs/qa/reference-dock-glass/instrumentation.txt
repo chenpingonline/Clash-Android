@@ -1,0 +1,10 @@
+
+cn.nascp.clash.DockGlassTest:.
+cn.nascp.clash.DockMotionTest:.
+cn.nascp.clash.MotionNavigationTest:.
+
+Time: 9.27
+
+OK (3 tests)
+
+

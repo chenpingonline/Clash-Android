@@ -1,0 +1,34 @@
+
+cn.nascp.clash.PageCoverageTest:
+Error in secondaryPagesRenderInBothThemes(cn.nascp.clash.PageCoverageTest):
+java.lang.AssertionError: Action performScrollTo() failed.
+Reason: Expected exactly '1' node but could not find any node that satisfies: ((Text + InputText + EditableText contains '内核管理' (ignoreCase: false)).last)
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:81)
+	at cn.nascp.clash.PageCoverageTest.secondaryPagesRenderInBothThemes(PageCoverageTest.kt:37)
+.
+cn.nascp.clash.EditorInteractionTest:.
+cn.nascp.clash.PlainThemeTest:..
+cn.nascp.clash.SubscriptionUiTest:..
+cn.nascp.clash.DocumentFlowTest:.
+cn.nascp.clash.FeedbackUiTest:.
+
+Time: 56.888
+There was 1 failure:
+1) secondaryPagesRenderInBothThemes(cn.nascp.clash.PageCoverageTest)
+java.lang.AssertionError: Action performScrollTo() failed.
+Reason: Expected exactly '1' node but could not find any node that satisfies: ((Text + InputText + EditableText contains '内核管理' (ignoreCase: false)).last)
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:81)
+	at cn.nascp.clash.PageCoverageTest.secondaryPagesRenderInBothThemes(PageCoverageTest.kt:37)
+
+FAILURES!!!
+Tests run: 9,  Failures: 1
+
+

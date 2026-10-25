@@ -1,0 +1,12 @@
+
+cn.nascp.clash.EditorInteractionTest:.
+cn.nascp.clash.PlainThemeTest:..
+cn.nascp.clash.SubscriptionUiTest:..
+cn.nascp.clash.DocumentFlowTest:.
+cn.nascp.clash.FeedbackUiTest:.
+
+Time: 50.634
+
+OK (7 tests)
+
+

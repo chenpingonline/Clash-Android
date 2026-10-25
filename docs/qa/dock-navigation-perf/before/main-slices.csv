@@ -1,0 +1,19 @@
+"name","max_ms","n"
+"Choreographer#doFrame 217290",139.350000,1
+"Choreographer#doFrame - resynced to 217296 in 19.7ms",139.310000,1
+"traversal",116.330000,39
+"draw-VRI[MainActivity]",116.290000,39
+"Record View#draw()",116.040000,39
+"Choreographer#doFrame 217283",110.770000,1
+"AndroidOwner:measureAndLayout",107.090000,38
+"Choreographer#doFrame 217267",81.850000,1
+"animation",63.420000,68
+"Recomposer:recompose",62.370000,68
+"Choreographer#doFrame 217337",31.360000,1
+"Choreographer#doFrame - resynced to 217339 in 31.1ms",31.310000,1
+"Choreographer#doFrame 217329",28.920000,1
+"Compose:recompose",28.900000,199
+"Choreographer#doFrame - resynced to 217331 in 27.8ms",28.880000,1
+"postAndWait",26.340000,39
+"Choreographer#doFrame 217321",25.350000,1
+"Choreographer#doFrame 217313",22.550000,1

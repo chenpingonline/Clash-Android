@@ -1,0 +1,8 @@
+
+cn.nascp.clash.PageCoverageTest:.
+
+Time: 12.05
+
+OK (1 test)
+
+

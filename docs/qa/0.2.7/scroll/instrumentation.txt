@@ -1,0 +1,9 @@
+
+cn.nascp.clash.ProxyLayoutTest:......
+cn.nascp.clash.ProxyRuntimeTest:.
+
+Time: 11.657
+
+OK (7 tests)
+
+

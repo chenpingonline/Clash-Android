@@ -1,0 +1,90 @@
+[
+  {
+    "slug": "01-proxies",
+    "title": "开始使用与代理编辑",
+    "ids": [
+      "01",
+      "04",
+      "05",
+      "06"
+    ],
+    "source": "/Users/chenping/.codex/generated_images/01a168d8-7e53-7e50-a388-1292e15f6048/exec-b3cd2dda-bc4c-4bff-b5e0-1c2d3152f98e.png"
+  },
+  {
+    "slug": "02-profiles",
+    "title": "订阅配置与规则入口",
+    "ids": [
+      "08",
+      "09",
+      "10",
+      "11"
+    ],
+    "source": "/Users/chenping/.codex/generated_images/01a168d8-7e53-7e50-a388-1292e15f6048/exec-9fa93019-2f07-4af1-a5d2-d3e84f44a19f.png"
+  },
+  {
+    "slug": "03-rules",
+    "title": "规则管理与覆写",
+    "ids": [
+      "12",
+      "13",
+      "14",
+      "15"
+    ],
+    "source": "/Users/chenping/.codex/generated_images/01a168d8-7e53-7e50-a388-1292e15f6048/exec-e2064655-a3bb-467e-a8d2-1729676fde52.png"
+  },
+  {
+    "slug": "04-editors",
+    "title": "编辑器与连接详情",
+    "ids": [
+      "16",
+      "17",
+      "18",
+      "20"
+    ],
+    "source": "/Users/chenping/.codex/generated_images/01a168d8-7e53-7e50-a388-1292e15f6048/exec-2b068cd4-1f09-4308-b898-0325bf4173aa.png"
+  },
+  {
+    "slug": "05-vpn-network",
+    "title": "VPN与网络",
+    "ids": [
+      "23",
+      "24",
+      "25",
+      "26"
+    ],
+    "source": "/Users/chenping/.codex/generated_images/01a168d8-7e53-7e50-a388-1292e15f6048/exec-4eb3fd00-c894-4a48-8b41-a5d13c0deab7.png"
+  },
+  {
+    "slug": "06-dns",
+    "title": "DNS详细设置",
+    "ids": [
+      "27",
+      "28",
+      "29A",
+      "29B"
+    ],
+    "source": "/Users/chenping/.codex/generated_images/01a168d8-7e53-7e50-a388-1292e15f6048/exec-d57d9d3e-004c-408c-bf53-fe97c33df2f9.png"
+  },
+  {
+    "slug": "07-runtime",
+    "title": "内核、自动化与外观",
+    "ids": [
+      "30",
+      "31",
+      "32",
+      "33"
+    ],
+    "source": "/Users/chenping/.codex/generated_images/01a168d8-7e53-7e50-a388-1292e15f6048/exec-ff30270f-63db-421a-b9f3-8916544b9282.png"
+  },
+  {
+    "slug": "08-maintenance",
+    "title": "备份、远程与诊断",
+    "ids": [
+      "34",
+      "35",
+      "36",
+      "37"
+    ],
+    "source": "/Users/chenping/.codex/generated_images/01a168d8-7e53-7e50-a388-1292e15f6048/exec-33affec0-bb4a-4c62-a5b3-f6ed8c91774a.png"
+  }
+]

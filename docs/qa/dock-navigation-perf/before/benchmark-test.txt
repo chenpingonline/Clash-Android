@@ -1,0 +1,8 @@
+
+cn.nascp.clash.ProxyManualFixtureTest:.
+
+Time: 17.772
+
+OK (1 test)
+
+

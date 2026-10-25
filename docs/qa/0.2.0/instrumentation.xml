@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="cn.nascp.clash.ManagementIntegrationTest" tests="3" failures="0" errors="0" skipped="0" time="36.927" timestamp="2026-10-23T15:06:08" hostname="localhost">
+  <properties>
+    <property name="device" value="Pixel_9_Pro(AVD) - 16" />
+    <property name="flavor" value="" />
+    <property name="project" value=":app" />
+  </properties>
+  <testcase name="editsValidatePreserveSourcesAndRestoreBackup" classname="cn.nascp.clash.ManagementIntegrationTest" time="0.206" />
+  <testcase name="vpnRoutesTcpUdpDnsAndExplicitProxy" classname="cn.nascp.clash.NetworkIntegrationTest" time="9.768" />
+  <testcase name="secondaryPagesRenderInBothThemes" classname="cn.nascp.clash.PageCoverageTest" time="26.384" />
+</testsuite>

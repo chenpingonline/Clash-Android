@@ -1,0 +1,5 @@
+# cn.nascp/clashmobile.test
+ld: warning: '/private/var/folders/sp/90pk0ss17bj66n2wcc3fgx1h0000gn/T/go-link-1165471305/000012.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+ok  	cn.nascp/clashmobile	(cached)
+ok  	clashmanager/configyaml	(cached)
+ok  	clashmanager/ruleimport	(cached)

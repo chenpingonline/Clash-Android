@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="cn.nascp.clash.PlainThemeTest" tests="2" failures="0" errors="0" skipped="0" time="18.007" timestamp="2026-10-23T19:15:34" hostname="localhost">
+  <properties>
+    <property name="device" value="Clash_Plain_QA(AVD) - 16" />
+    <property name="flavor" value="" />
+    <property name="project" value=":app" />
+  </properties>
+  <testcase name="selectRecreateAndRestoreTheme" classname="cn.nascp.clash.PlainThemeTest" time="4.688" />
+  <testcase name="compactPagesAndRuntimeActions" classname="cn.nascp.clash.PlainThemeTest" time="12.641" />
+</testsuite>

@@ -1,0 +1,22 @@
+
+cn.nascp.clash.PageCoverageTest:..
+cn.nascp.clash.EditorInteractionTest:
+Error in editsThroughRealControlsPersistAndInvalidInputDoesNotOverwrite(cn.nascp.clash.EditorInteractionTest):
+org.junit.ComparisonFailure: expected:<[]> but was:<[{}]>
+	at org.junit.Assert.assertEquals(Assert.java:117)
+	at org.junit.Assert.assertEquals(Assert.java:146)
+	at cn.nascp.clash.EditorInteractionTest.editsThroughRealControlsPersistAndInvalidInputDoesNotOverwrite(EditorInteractionTest.kt:43)
+
+
+Time: 71.442
+There was 1 failure:
+1) editsThroughRealControlsPersistAndInvalidInputDoesNotOverwrite(cn.nascp.clash.EditorInteractionTest)
+org.junit.ComparisonFailure: expected:<[]> but was:<[{}]>
+	at org.junit.Assert.assertEquals(Assert.java:117)
+	at org.junit.Assert.assertEquals(Assert.java:146)
+	at cn.nascp.clash.EditorInteractionTest.editsThroughRealControlsPersistAndInvalidInputDoesNotOverwrite(EditorInteractionTest.kt:43)
+
+FAILURES!!!
+Tests run: 3,  Failures: 1
+
+

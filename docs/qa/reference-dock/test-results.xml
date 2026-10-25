@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="cn.nascp.clash.DockMotionTest" tests="4" failures="0" errors="0" skipped="0" time="16.996" timestamp="2026-10-24T10:57:58" hostname="localhost">
+  <properties>
+    <property name="device" value="Clash_Feedback_QA_20261024(AVD) - 16" />
+    <property name="flavor" value="" />
+    <property name="project" value=":app" />
+  </properties>
+  <testcase name="indicatorSlidesAndRetargetsDuringRapidSelection" classname="cn.nascp.clash.DockMotionTest" time="1.672" />
+  <testcase name="interruptedNavigationAndBackRemainConsistent" classname="cn.nascp.clash.MotionNavigationTest" time="3.895" />
+  <testcase name="selectRecreateAndRestoreTheme" classname="cn.nascp.clash.PlainThemeTest" time="2.48" />
+  <testcase name="compactPagesAndRuntimeActions" classname="cn.nascp.clash.PlainThemeTest" time="8.429" />
+</testsuite>
