@@ -129,6 +129,44 @@ class DockGlassTest {
         assertTrue("The page fade must leave Dock icons and labels sharp", dark > 100)
     }
 
+    @Test fun pageDetailsSoftenOutsideTheCapsule() {
+        ui.setContent {
+            ClashTheme("plain") {
+                val backdrop = rememberDockBackdrop()
+                Box(Modifier.size(320.dp, 360.dp).testTag("ambient-fixture")) {
+                    Box(Modifier.fillMaxSize().dockBackdropSource(backdrop, Color.White, fadeColor = Color.White)
+                        .drawBehind {
+                            val stripe = 4.dp.toPx()
+                            repeat((size.width / stripe).toInt() + 1) { index ->
+                                drawRect(if (index % 2 == 0) Color.Black else Color.White,
+                                    Offset(index * stripe, 0f), Size(stripe, size.height))
+                            }
+                        })
+                    Box(Modifier.align(Alignment.BottomCenter)) { BottomDock("home", backdrop) {} }
+                }
+            }
+        }
+        ui.waitForIdle()
+        val bounds = ui.onNodeWithTag("ambient-fixture").getUnclippedBoundsInRoot()
+        val dock = ui.onNodeWithTag("dock-surface").getUnclippedBoundsInRoot()
+        val capture = ui.onNodeWithTag("ambient-fixture").captureToImage()
+        File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "ambient-fixture.png")
+            .outputStream().use { capture.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        val pixels = capture.toPixelMap()
+        val scale = pixels.height / (bounds.bottom - bounds.top).value
+        val top = dock.top.value - bounds.top.value
+        fun detail(y: Float): Float {
+            val line = (12 until pixels.width - 12).map { pixels[it, (y * scale).toInt()].luminance() }
+            return line.zipWithNext().sumOf { (a, b) -> abs(a - b).toDouble() }.toFloat() /
+                line.sumOf { (1f - it).toDouble() }.toFloat().coerceAtLeast(0.001f)
+        }
+        val clear = detail(top - 60f)
+        val approaching = detail(top - 8f)
+        assertTrue("The page away from the Dock must retain sharp detail", clear > 0.05f)
+        assertTrue("Page detail must soften before the capsule, rather than only fade in opacity",
+            approaching < clear * 0.55f)
+    }
+
     @Test fun refractionBendsBackgroundNearEdgeWithoutWarpingTheCenter() {
         org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT >= 33)
         val bending=mutableStateOf(false)
@@ -262,15 +300,15 @@ class DockGlassTest {
             val centerX = surface.width / 2
             val rim = surface[centerX, 1].luminance()
             val shoulder = surface[centerX, (surface.height * 0.05f).toInt()].luminance()
-            assertTrue("The white upper rim must separate from the local frosted edge on pale content",
-                rim - shoulder > 0.07f)
+            assertTrue("The white rim must remain brighter than the material", rim > shoulder)
+            assertTrue("The bright material must not contain an inset grey groove",
+                abs(surface[centerX, (surface.height * 0.60f).toInt()].luminance() - shoulder) < 0.04f)
             val y = (pixels.height * 0.60f).toInt()
             // Gap between icon and label avoids measuring foreground ink.
             val body = pixels[pixels.width / 2, y].luminance()
             val selected = pixels[pixels.width / 10, y].luminance()
             if (index == 0) {
                 assertTrue("Edge frosting must leave the white-backed middle bright", body > 0.96f)
-                assertTrue("The shaded edge must recover into a bright interior", body - shoulder > 0.06f)
             }
             println("glass contrast: background=${color.luminance()}, body=$body, selected=$selected")
             // Frost can share a grey page's tone; its upper rim-to-shoulder contrast

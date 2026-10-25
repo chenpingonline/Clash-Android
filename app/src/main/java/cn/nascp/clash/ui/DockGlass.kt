@@ -22,14 +22,17 @@ internal val DockHorizontalPadding = 4.dp
 internal val DockVerticalPadding = 5.dp
 
 /** Only page content is recorded, so sampling it can never include the Dock itself. */
-@Stable internal class DockBackdrop(val layer: GraphicsLayer) {
+@Stable internal class DockBackdrop(val layer: GraphicsLayer, val ambientLayer: GraphicsLayer, val maskLayer: GraphicsLayer) {
+    var ambientRadius = 0f
     var origin by mutableStateOf(Offset.Zero)
     var dockTop by mutableFloatStateOf(Float.NaN)
 }
 
 @Composable internal fun rememberDockBackdrop(): DockBackdrop {
     val layer = rememberGraphicsLayer()
-    return remember(layer) { DockBackdrop(layer) }
+    val ambientLayer = rememberGraphicsLayer()
+    val maskLayer = rememberGraphicsLayer()
+    return remember(layer, ambientLayer, maskLayer) { DockBackdrop(layer, ambientLayer, maskLayer) }
 }
 
 internal fun Modifier.dockBackdropSource(backdrop: DockBackdrop, background: Color, fadeColor: Color? = null): Modifier =
@@ -53,6 +56,31 @@ internal fun Modifier.dockBackdropSource(backdrop: DockBackdrop, background: Col
             }
         }
         drawLayer(backdrop.layer)
+        if (fadeColor != null && top.isFinite() && Build.VERSION.SDK_INT >= 31) {
+            // The reference softens page pixels outside the capsule as well. Blend
+            // a blurred lower strip into the page, leaving the Dock foreground sharp.
+            val blurRadius = 12.dp.toPx()
+            val margin = blurRadius * 3
+            val transition = 40.dp.toPx()
+            val stripTop = (top - transition).coerceIn(0f, size.height)
+            val stripSize = IntSize((size.width + margin * 2).roundToInt(),
+                (size.height - stripTop + margin * 2).roundToInt())
+            val densitySnapshot = androidx.compose.ui.unit.Density(density, fontScale)
+            if (backdrop.ambientRadius != blurRadius) {
+                backdrop.ambientRadius = blurRadius
+                backdrop.ambientLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
+            }
+            backdrop.ambientLayer.record(densitySnapshot, layoutDirection, stripSize) {
+                translate(margin, margin - stripTop) { drawLayer(backdrop.layer) }
+            }
+            backdrop.maskLayer.compositingStrategy = androidx.compose.ui.graphics.layer.CompositingStrategy.Offscreen
+            backdrop.maskLayer.record(densitySnapshot, layoutDirection, stripSize) {
+                drawLayer(backdrop.ambientLayer)
+                drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to Color.White,
+                    startY = margin, endY = margin + transition), blendMode = BlendMode.DstIn)
+            }
+            translate(-margin, stripTop - margin) { drawLayer(backdrop.maskLayer) }
+        }
     }
 
 @Stable internal class DockGlass(val layer: GraphicsLayer, val lensLayer: GraphicsLayer, val backdrop: DockBackdrop?, val refractive: Boolean) {
@@ -114,26 +142,6 @@ internal fun Modifier.dockGlassSurface(glass: DockGlass, tint: Color, cornerRadi
         drawRect(Color.Black.copy(alpha = if (light) 0.012f else 0.025f))
         drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (light) 0.12f else 0.035f),
             Color.White.copy(alpha = 0.025f), tint.copy(alpha = 0.08f))))
-        if (light) {
-            // Confine the soft tonal transition to the perimeter. The middle keeps
-            // the original bright frost, with no full-surface grey wash.
-            val radius = cornerRadius.toPx()
-            val bandStart = 1.dp.toPx()
-            val bandWidth = 7.dp.toPx()
-            val steps = 12
-            val stepWidth = bandWidth / steps
-            val shade = Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.060f),
-                Color.Black.copy(alpha = 0.025f), Color.Black.copy(alpha = 0.016f)))
-            repeat(steps) { index ->
-                val t = (index + 0.5f) / steps
-                val falloff = kotlin.math.sin(kotlin.math.PI.toFloat() * t)
-                val edgeInset = bandStart + (index + 0.5f) * stepWidth
-                drawRoundRect(shade, Offset(edgeInset, edgeInset),
-                    Size(size.width - edgeInset * 2, size.height - edgeInset * 2),
-                    CornerRadius((radius - edgeInset).coerceAtLeast(0f)),
-                    alpha = falloff * falloff, style = Stroke(stepWidth + 0.3f))
-            }
-        }
         drawContent()
         val radius = cornerRadius.toPx()
         // One white perimeter, with a broad low-contrast frosted shoulder inside.
