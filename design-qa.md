@@ -180,3 +180,15 @@ Removed the 24dp pre-entry blur region. The lower-page blur now starts at the ca
 Validation: build, lint and 11 material/motion instrumentation tests passed. The approaching-content test now checks retention of sharp high-frequency detail above the capsule; source fading and optical sampling remain separately tested. `dist/qa-dock-outer-clarity/ambient-fixture.png` shows sharp vertical boundaries above the top edge. Wireless installation returned Success; phone scroll captures are saved in the same directory. Overall exact Xiaomi material fidelity remains unverified as documented in the prior section.
 
 final result: blocked
+
+## 2026-10-25 Dark Dock: quiet perimeter with live background response
+
+References: user screenshots `codex-clipboard-5969a9f2-d893-410f-9952-b62009dc4fe5.png` and `codex-clipboard-d1492d1e-2975-445e-87ee-9c9b0b0fc2fe.png` under the supplied temporary folder. The first shows a near-black body with a fine neutral rim; the second shows broad thumbnail brightness passing through the same material without a raised glossy edge.
+
+Dark-only changes: neutral #171717 optical tint, equal body/shoulder coating, much lower directional reflection, no white surface glaze or catchlight, and a consistent faint grey hairline instead of the former bright-top/dark-bottom bevel. Light-mode constants, geometry, selection motion and approaching-content clarity remain unchanged. The API31 fallback uses the same dark tint/coating intent.
+
+Build/lint/diff checks and 12 material/motion tests passed, including a new black/bright-backdrop regression: dark body remains near-black, inner shoulder does not create a bright ridge, selection remains distinct on black, and bright source pixels still affect the glass. An initial test sampling range overlapped the icon; it was corrected to sample the unobstructed upper shoulder, then the full suite reran successfully.
+
+Wireless installation returned Success. Actual-phone proxy-list navigation and scrolls were driven from UI-tree bounds and recorded; `dist/qa-dock-dark/phone-dock.png`, `phone-scroll.mp4` and `scroll-grid.png` were inspected. Native test captures `dark-glass-black.png` and `dark-glass-bright.png` show the material under controlled black/white source changes. This verifies the dark bevel correction and live material response; it does not establish pixel-identical Xiaomi rendering.
+
+final result: passed
