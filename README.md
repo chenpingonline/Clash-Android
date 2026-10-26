@@ -6,6 +6,29 @@
 
 **[下载最新正式版](https://github.com/chenpingonline/Clash-Android/releases/latest)** · **[更新记录](CHANGELOG.md)** · **[构建说明](#本地构建)** · **[第三方来源](THIRD_PARTY.md)**
 
+## 界面预览
+
+首页概览、节点与策略组、简洁设置和分应用代理。以下为模拟器实拍，节点名称与配置均为演示数据，不代表实际代理服务或测速结果。点击图片可查看原图。
+
+<table>
+  <tr>
+    <th>首页概览</th>
+    <th>节点与策略组</th>
+  </tr>
+  <tr>
+    <td align="center"><a href="docs/screenshots/home.png"><img src="docs/screenshots/home.png" alt="Clash Android 首页：连接状态、模式切换、流量与当前配置" width="300"></a></td>
+    <td align="center"><a href="docs/screenshots/proxies.png"><img src="docs/screenshots/proxies.png" alt="代理页面：节点预选和按配置顺序排列的策略组" width="300"></a></td>
+  </tr>
+  <tr>
+    <th>简洁设置</th>
+    <th>分应用代理</th>
+  </tr>
+  <tr>
+    <td align="center"><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="设置页面：外观、VPN、订阅更新、备份与诊断入口" width="300"></a></td>
+    <td align="center"><a href="docs/screenshots/apps.png"><img src="docs/screenshots/apps.png" alt="分应用代理：代理模式、应用搜索与应用选择" width="300"></a></td>
+  </tr>
+</table>
+
 ## 下载与安装
 
 当前正式版：**[0.3.1](https://github.com/chenpingonline/Clash-Android/releases/tag/v0.3.1)**。
@@ -15,7 +38,7 @@
 | 系统要求 | Android 10 及以上 |
 | 支持架构 | ARM64 / arm64-v8a |
 | 正式包名 | `cn.chenpingonline.clash` |
-| 安装包 | `Clash-Android-0.2.45-arm64.apk`，约 24.6 MiB |
+| 安装包 | `Clash-Android-0.3.1-arm64.apk`，约 24.7 MiB |
 | 构建方式 | release 构建，启用 R8 优化和资源裁剪，使用专用发行签名 |
 
 在 [Releases](https://github.com/chenpingonline/Clash-Android/releases) 下载 APK，按 Android 提示允许安装并完成安装。正式 Release 仅上传 APK，SHA-256 校验值由 GitHub 提供；对应源码可从 Release 的 Source code 入口下载。
