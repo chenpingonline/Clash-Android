@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -15,6 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -220,19 +224,40 @@ import org.json.JSONObject
     }
 }
 
+private data class InstalledApp(val label:String,val packageName:String,val icon:ImageBitmap)
+
 @Composable private fun AppsPage(vm: MainViewModel, s: AppState) {
     val context=LocalContext.current
     var mode by rememberSaveable { mutableStateOf(vm.repo.draft("app-mode").ifBlank{"全部应用"}) }
     var query by rememberSaveable { mutableStateOf("") }
     val selected=remember { mutableStateListOf<String>().also { it.addAll(vm.repo.draft("app-packages").lines().filter(String::isNotBlank)) } }
-    var apps by remember { mutableStateOf(emptyList<Pair<String,String>>()) }
-    LaunchedEffect(Unit) { apps=withContext(Dispatchers.IO) { context.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),0).map { it.loadLabel(context.packageManager).toString() to it.activityInfo.packageName }.distinctBy{it.second}.filter{it.second!=context.packageName}.sortedBy{it.first} } }
+    var apps by remember { mutableStateOf(emptyList<InstalledApp>()) }
+    LaunchedEffect(context) {
+        apps=withContext(Dispatchers.IO) {
+            val manager=context.packageManager
+            val iconSize=(40 * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+            manager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),0)
+                .distinctBy{it.activityInfo.packageName}.filter{it.activityInfo.packageName!=context.packageName}
+                .map { app ->
+                    val icon=runCatching { app.loadIcon(manager).toBitmap(iconSize,iconSize) }
+                        .getOrElse { manager.defaultActivityIcon.toBitmap(iconSize,iconSize) }
+                    InstalledApp(app.loadLabel(manager).toString(),app.activityInfo.packageName,icon.asImageBitmap())
+                }.sortedBy{it.label}
+        }
+    }
     Page {
-        Choices(listOf("全部应用","仅选中","排除选中").map{it to it},mode){mode=it}
+        Panel { SettingChoiceEntry("代理模式",listOf("全部应用","仅选中","排除选中").map{it to it},mode){mode=it} }
         AppTextField(query,{query=it},Modifier.fillMaxWidth(),label={UiText("搜索应用")},singleLine=true)
         Info("显示系统允许查询的可启动应用。修改后下次启动VPN生效。开启系统阻断时，被排除的应用将无法联网。")
-        Panel { apps.filter{it.first.contains(query,true)||it.second.contains(query,true)}.forEach{(label,pkg)->
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Checkbox(pkg in selected,{checked->if(checked)selected.add(pkg) else selected.remove(pkg)},enabled=mode!="全部应用");Column(Modifier.weight(1f)){UiText(label);UiText(pkg,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
+        Panel { apps.filter{it.label.contains(query,true)||it.packageName.contains(query,true)}.forEach{app->
+            key(app.packageName) {
+                Row(Modifier.fillMaxWidth().padding(vertical=4.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Checkbox(app.packageName in selected,{checked->if(checked)selected.add(app.packageName) else selected.remove(app.packageName)},enabled=mode!="全部应用")
+                    Image(app.icon,contentDescription=null,modifier=Modifier.size(40.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)){UiText(app.label);UiText(app.packageName,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                }
+            }
         } }
         MainButton("保存应用选择", s.phase !in listOf(VpnPhase.STARTING,VpnPhase.STOPPING)) { vm.run { require(mode!="仅选中"||selected.isNotEmpty()){ "至少选择一个应用" };vm.repo.saveDraft("app-mode",mode);vm.repo.saveDraft("app-packages",selected.joinToString("\n"));vm.repo.message("已保存，下次启动VPN生效") } }
     }

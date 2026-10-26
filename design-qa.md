@@ -192,3 +192,34 @@ Build/lint/diff checks and 12 material/motion tests passed, including a new blac
 Wireless installation returned Success. Actual-phone proxy-list navigation and scrolls were driven from UI-tree bounds and recorded; `dist/qa-dock-dark/phone-dock.png`, `phone-scroll.mp4` and `scroll-grid.png` were inspected. Native test captures `dark-glass-black.png` and `dark-glass-bright.png` show the material under controlled black/white source changes. This verifies the dark bevel correction and live material response; it does not establish pixel-identical Xiaomi rendering.
 
 final result: passed
+
+## 2026-10-25 字号与字重胶囊滑杆
+
+- Source visual truth：`.cache/qa-font-sliders/reference.png`，用户提供的 794×248px 双滑杆参考图。
+- Implementation：`FontScaleControl.kt`、`PlainThemeViews.kt`；完整截图 `.cache/qa-font-sliders/final.png`（90%字号、标准字重）与 `default-final.png`（恢复100%字号）；聚焦对照 `.cache/qa-font-sliders/comparison.png`。
+- Viewport：Android 16 arm64 模拟器，1170×2532px、390×844dp、density 3；原生 Compose，无 CSS viewport。对照将两条原生滑杆分别从全屏截图裁出，等比缩放至794px宽并上下排列，与参考同列展示；不将系统栏或新增设置标题视作参考差异。参考没有字号数值，选择相近的90%档位置；保留原有80%–150%共8档，参考约7个点，不声称逐像素复刻。
+- Full-view：Computer Use 查看完整外观设置页，原有主题、语言、字号预览和系统字体入口保留，100%及120%字号下未见裁切。参考仅给控件，没有整页布局。
+- Focused comparison：`comparison-before.png` 中首版34dp轨道、24dp滑块较参考偏厚；已改为28dp轨道、20dp滑块。`comparison.png` 对比复查后，胶囊圆角、白色滑块及两端A字符比例接近参考，无待修复P0/P1/P2。
+- 字体：使用应用原生字体；字号两端A分别16sp/28sp，字重两端使用Light/ExtraBold，保留界面文字层级。
+- 间距与布局：48dp最小交互高度，轨道28dp，滑块20dp；标题与数值用于明确当前档位。背景与分组沿用原应用。
+- 颜色：浅灰轨道、蓝色填充、白色滑块；蓝色沿用应用primary，较参考更深，属于既有主题适配。刻度按当前填充区切换透明白色/灰色。
+- 图像：仅原生交互控件，无位图/装饰图片资产；A是可访问的文本标签。
+- 文案：保留字号百分比、重置、偏细/标准/加粗状态与即时生效说明，无实现细节暴露。
+- 交互：Computer Use 在支持拖动的实时模拟器镜像中将字重从标准拖到加粗、字号从100%拖到120%；读取持久设置确认100与1.2已保存；重置字号并恢复标准字重。保留Material Slider拖动、离散档位和无障碍语义。构建与lint通过。
+- 限制：未进行真机、TalkBack或深色模式专项验证。
+- final result: passed
+
+## 2026-10-25 设置单选底部弹窗
+
+- Source visual truth：`.cache/qa-choice-dialog/reference.jpg`，用户截图1280×2844px；目标是图中的底部单选弹窗，不复制语音输出页面或增加图中不存在于本应用的语言。
+- Implementation：`SettingChoiceEntry.kt`；应用到主题、语言和分应用代理模式。完整截图 `language-final.png`、`app-mode.png` 位于 `.cache/qa-choice-dialog/`。
+- Viewport：Android16 arm64模拟器1170×2532px，390×844dp，density3，字号100%/标准字重。参考按390px宽等比缩放到390×867px；实现按390×844px归一化，完整并排对照为 `.cache/qa-choice-dialog/comparison.png`。不同系统栏、页面内容、选项数量不作像素偏差判断。
+- Full-view/focused comparison：对照参考和实现完整页面及弹窗区域。白色浮层底部留边、大圆角、居中标题、左对齐选项、蓝色勾选与独立灰色取消按钮均已实现。语言仅有本应用支持的中文/English两项，因此高度随内容缩短；主题和代理模式各有三项。
+- 字体：沿用原生界面的标题和正文字号，以及现有字体缩放/字重设置，保留层级。没有替换成截图里的厂商字体。
+- 间距：16dp侧边距/12dp底边距、32dp圆角；选项最小60dp行高，取消按钮最小52dp。较宽屏限制560dp最大宽；较多选项可滚动，浮层最大85%可用高度。
+- 颜色：surface底色、primary选中项、surfaceVariant取消按钮。首版默认Dialog遮罩过深，已调为0.24，最终对照接近参考；深色采用现有主题色。
+- 图像：无装饰位图；使用已有Material勾选图标，未用图片模拟可交互列表。
+- 文案：主题和语言入口显示当前值；代理模式保持原“保存应用选择”后持久生效的行为，只调整选择入口。
+- 交互：Computer Use验证取消不修改、点击遮罩关闭、中文→English→中文、跟随系统→深色→跟随系统、代理模式全部应用→仅选中→全部应用；选择后自动关闭、当前值更新，代理模式仅选中后复选框启用。构建与lint通过。
+- 未专项覆盖：真机、TalkBack、系统返回键、横屏和大字号；标准Dialog提供返回关闭，代码保留单选语义。
+- final result: passed

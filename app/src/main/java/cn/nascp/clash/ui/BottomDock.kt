@@ -143,7 +143,7 @@ private val dockLabels = listOf("首页", "代理", "配置", "活动", "设置"
                         BoxWithConstraints(Modifier.fillMaxWidth().graphicsLayer { alpha = 1f - 0.14f * max(pressedFeedback, if (selected) selectionPulse.value else 0f) }) {
                             val label = tr(dockLabels[index])
                             val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp,
-                                lineHeight = 16.sp, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium)
+                                lineHeight = 16.sp, textAlign = TextAlign.Center, fontWeight = adjustedFontWeight(FontWeight.Medium,LocalFontWeightAdjustment.current))
                             val availableWidth = constraints.maxWidth
                             // Measure a single unwrapped line. Cache by typography and width,
                             // so tint/selection animation never remeasures every label.

@@ -25,7 +25,7 @@ data class AppState(
     val ready: Boolean = false, val profiles: List<Profile> = emptyList(), val selectedId: String = "",
     val activeId: String = "", val runtimeRevision: Long = 0, val phase: VpnPhase = VpnPhase.STOPPED, val error: String = "",
     val messageKind: MessageKind = MessageKind.INFO, val messageId: Long = 0,
-    val busy: Boolean = false, val language: String = "zh", val fontScale:Float = 1f, val theme: String = ThemePreference.DEFAULT, val up: Long = 0, val down: Long = 0,
+    val busy: Boolean = false, val language: String = "zh", val fontScale:Float = 1f, val fontWeight:Int = 0, val theme: String = ThemePreference.DEFAULT, val up: Long = 0, val down: Long = 0,
     val totalUp: Long = 0, val totalDown: Long = 0, val mode: String = "rule",
     val exitLocation: ExitLocation? = null, val exitLoading: Boolean = false, val exitError: String = "",
     val preview: JSONObject = JSONObject(), val previewProfile: Profile? = null, val previewId: String = "", val previewRevision: Long = 0,
@@ -49,7 +49,7 @@ class ClashRepository private constructor(context: Context) {
     private val exitRefresh=MutableStateFlow(0L)
     internal var exitLocationFetcher:suspend ()->ExitLocation = { queryExitLocation() }
     private val selectionLock = Any()
-    private val mutable = MutableStateFlow(AppState(totalUp=trafficTotals.current().upload,totalDown=trafficTotals.current().download,theme = ThemePreference.resolve(prefs.getString("theme", null)),language=prefs.getString("language","zh")!!,fontScale=prefs.getFloat("fontScale",1f)))
+    private val mutable = MutableStateFlow(AppState(totalUp=trafficTotals.current().upload,totalDown=trafficTotals.current().download,theme = ThemePreference.resolve(prefs.getString("theme", null)),language=prefs.getString("language","zh")!!,fontScale=prefs.getFloat("fontScale",1f),fontWeight=prefs.getInt("fontWeight",0).takeIf{it in setOf(-100,0,100)}?:0))
     val state = mutable.asStateFlow()
     val secret = UUID.randomUUID().toString()
     private val initialization = scope.async {
@@ -59,7 +59,7 @@ class ClashRepository private constructor(context: Context) {
             val profiles = store.load()
             val selected = prefs.getString("selected", "").orEmpty().takeIf { id -> profiles.any { it.id == id } } ?: profiles.firstOrNull()?.id.orEmpty()
             cn.nascp.clash.system.scheduleSubscriptions(context,draft("automation-minutes").toLongOrNull()?.coerceAtLeast(15)?:720L,draft("automation-enabled")=="true")
-            mutable.update { it.copy(ready = true, profiles = profiles, selectedId = selected, theme=ThemePreference.resolve(prefs.getString("theme",null)),language=prefs.getString("language","zh")!!,fontScale=prefs.getFloat("fontScale",1f)) }
+            mutable.update { it.copy(ready = true, profiles = profiles, selectedId = selected, theme=ThemePreference.resolve(prefs.getString("theme",null)),language=prefs.getString("language","zh")!!,fontScale=prefs.getFloat("fontScale",1f),fontWeight=prefs.getInt("fontWeight",0).takeIf{it in setOf(-100,0,100)}?:0) }
         } catch (e: Exception) { mutable.update { it.copy(error = e.message ?: "初始化失败", messageKind = MessageKind.ERROR, messageId = it.messageId + 1) } }
     }
     init {
@@ -153,6 +153,7 @@ class ClashRepository private constructor(context: Context) {
     }
     fun phase(phase: VpnPhase, activeId: String = "", error: String = "") { synchronized(selectionLock) { mutable.update { it.copy(phase = phase, activeId = activeId, runtimeRevision=it.runtimeRevision+1, error = error, messageKind = if(error.isBlank())MessageKind.INFO else MessageKind.ERROR, messageId = it.messageId + 1, up=0, down=0, exitLocation=null,exitLoading=false,exitError="", proxies=JSONObject(), connections=JSONArray()) } } }
     fun language(value:String){require(value in listOf("zh","en"));prefs.edit().putString("language",value).apply();mutable.update{it.copy(language=value)}}
+    fun fontWeight(value:Int){require(value in setOf(-100,0,100));prefs.edit().putInt("fontWeight",value).apply();mutable.update{it.copy(fontWeight=value)}}
     fun fontScale(value:Float){require(value in 0.8f..1.5f);prefs.edit().putFloat("fontScale",value).apply();mutable.update{it.copy(fontScale=value)}}
     fun theme(value: String) { val resolved = ThemePreference.resolve(value); prefs.edit().putString("theme", resolved).apply(); mutable.update { it.copy(theme = resolved) } }
     fun draft(key: String): String = prefs.getString("encrypted-draft.$key", null)?.let(store::decryptText).orEmpty()
@@ -240,7 +241,7 @@ class ClashRepository private constructor(context: Context) {
         }
         val assets=JSONObject()
         context.filesDir.resolve("core/rules").listFiles()?.filter{it.name.matches(Regex("import-[a-f0-9]{64}\\.mrs"))}?.forEach{file->require(file.length()<=8*1024*1024);assets.put(file.name,android.util.Base64.encodeToString(file.readBytes(),android.util.Base64.NO_WRAP))}
-        return JSONObject().put("assets",assets).put("format","clash-android").put("version",1).put("includesSettings",includeSettings).put("profiles",profiles).put("settings",settings).put("theme",state.value.theme).put("language",state.value.language).put("fontScale",state.value.fontScale).put("selected",state.value.selectedId).toString(2)
+        return JSONObject().put("assets",assets).put("format","clash-android").put("version",1).put("includesSettings",includeSettings).put("profiles",profiles).put("settings",settings).put("theme",state.value.theme).put("language",state.value.language).put("fontScale",state.value.fontScale).put("fontWeight",state.value.fontWeight).put("selected",state.value.selectedId).toString(2)
     }
     suspend fun validateBackup(text:String):JSONObject = withContext(Dispatchers.IO) {
         require(text.length<=32*1024*1024){"备份过大"}
@@ -264,10 +265,11 @@ class ClashRepository private constructor(context: Context) {
         val selected=root.optString("selected").takeIf{id->restored.any{it.id==id}}?:restored.firstOrNull()?.id.orEmpty()
         val language=(if(includesSettings)root.optString("language","zh")else state.value.language).takeIf{it in listOf("zh","en")}?:"zh"
         val scale=(if(includesSettings)root.optDouble("fontScale",1.0).toFloat()else state.value.fontScale).takeIf{it.isFinite()}?.coerceIn(0.8f,1.5f)?:1f
-        editor.putString("theme",theme).putString("selected",selected).putString("language",language).putFloat("fontScale",scale)
+        val weight=(if(includesSettings)root.optInt("fontWeight",0)else state.value.fontWeight).takeIf{it in setOf(-100,0,100)}?:0
+        editor.putInt("fontWeight",weight).putString("theme",theme).putString("selected",selected).putString("language",language).putFloat("fontScale",scale)
         withContext(Dispatchers.IO){beginJournal()}
         try{withContext(Dispatchers.IO){store.save(restored)};check(editor.commit()){"恢复设置失败"};journal.delete()}catch(e:Exception){withContext(Dispatchers.IO){recoverJournal()};throw e}
-        mutable.update{it.copy(profiles=restored,selectedId=selected,theme=theme,language=language,fontScale=scale,previewRevision=it.previewRevision+1,previewReady=false)}
+        mutable.update{it.copy(profiles=restored,selectedId=selected,theme=theme,language=language,fontScale=scale,fontWeight=weight,previewRevision=it.previewRevision+1,previewReady=false)}
         cn.nascp.clash.system.scheduleSubscriptions(context,draft("automation-minutes").toLongOrNull()?.coerceAtLeast(15)?:720L,draft("automation-enabled")=="true")
     }
     suspend fun rendered():String = withContext(Dispatchers.IO) {

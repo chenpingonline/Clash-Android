@@ -186,16 +186,18 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
     val context = androidx.compose.ui.platform.LocalContext.current
     Page {
         Panel {
-            UiText("主题模式", style = MaterialTheme.typography.titleMedium)
-            Choices(listOf("system" to "跟随系统", "light" to "浅色", "dark" to "深色"), s.theme, vm.repo::theme)
+            SettingChoiceEntry("主题模式", listOf("system" to "跟随系统", "light" to "浅色", "dark" to "深色"), s.theme, vm.repo::theme)
             UiText("主题即时生效，保留当前配置与VPN连接。", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Panel {
-            UiText("语言", style = MaterialTheme.typography.titleMedium)
-            Choices(listOf("zh" to "简体中文", "en" to "English"), s.language, vm.repo::language)
+            SettingChoiceEntry("语言", listOf("zh" to "简体中文", "en" to "English"), s.language, vm.repo::language)
             HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
             FontScaleControl(s.fontScale, vm.repo::fontScale)
+            HorizontalDivider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
+            FontWeightControl(s.fontWeight, vm.repo::fontWeight)
+            UiText("调整后即时生效，保留标题与正文的粗细层次。", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Entry("系统字体设置", "应用字体会叠加系统字号", Icons.Outlined.TextFields) {
                 context.startActivity(android.content.Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS))

@@ -48,7 +48,7 @@ private val english=mapOf(
 "请下拉控制中心，点击编辑，将 Clash VPN 添加到快捷设置" to "Open Quick Settings, tap Edit and add Clash VPN.",
 "可视化编辑" to "Visual editor",
 "未设置" to "Not set",
-"重置" to "Reset", "应用字体大小" to "App text size", "100% 默认" to "100% Default", "预览文字 Aa" to "Preview text Aa",
+"重置" to "Reset", "应用字体大小" to "App text size", "字体粗细" to "Text weight", "偏细" to "Lighter", "标准" to "Standard", "加粗" to "Heavier", "调整后即时生效，保留标题与正文的粗细层次。" to "Applies immediately while preserving heading and body weight differences.", "100% 默认" to "100% Default", "预览文字 Aa" to "Preview text Aa",
 "系统字体设置" to "System font settings", "应用字体会叠加系统字号" to "App scaling combines with the system text size",
 "更新于" to "Updated", "切换配置前请先停止 VPN" to "Stop VPN before switching profiles",
 "活动连接" to "Connections", "已暂停" to "Paused", "实时更新" to "Live", "清除搜索" to "Clear search",
@@ -94,7 +94,7 @@ private val english=mapOf(
 "分应用代理" to "Per-app VPN", "网络与端口" to "Network & ports", "DNS 与解析" to "DNS & resolution", "DNS 服务器" to "DNS servers",
 "Fake IP 与域名策略" to "Fake IP & domain policies", "DNS 回退过滤" to "Fallback filters", "Hosts 映射" to "Hosts", "内核管理" to "Core",
 "GEO 数据" to "GEO databases", "自动化与后台运行" to "Automation & background", "外观与语言" to "Appearance & language", "备份与恢复" to "Backup & restore",
-"关于与更新" to "About & updates", "远程控制器" to "Remote controllers", "诊断与导出" to "Diagnostics", "主题模式" to "Theme",
+"关于与更新" to "About & updates", "远程控制器" to "Remote controllers", "诊断与导出" to "Diagnostics", "主题模式" to "Theme", "代理模式" to "App routing mode",
 "流光白" to "Pearl glass", "雾绿磨砂" to "Sage glass", "跟随系统" to "System", "浅色" to "Light", "深色" to "Dark", "字体大小" to "Text size", "跟随系统字体大小" to "System text size",
 "取消" to "Cancel", "保存" to "Save", "删除" to "Delete", "编辑" to "Edit", "恢复" to "Restore", "关闭" to "Close", "返回" to "Back",
 "规则" to "Rules", "全局" to "Global", "直连" to "Direct", "日志" to "Logs", "连接" to "Connections", "名称" to "Name", "类型" to "Type",
@@ -164,4 +164,4 @@ private val english=mapOf(
 )
 internal fun localized(value:String,language:String):String=if(language=="en")english[value]?:value else value
 @Composable fun tr(value:String):String=localized(value,LocalLanguage.current)
-@Composable fun UiText(text:String,modifier:Modifier=Modifier,color:Color=Color.Unspecified,style:TextStyle=androidx.compose.material3.LocalTextStyle.current,fontWeight:FontWeight?=null,maxLines:Int=Int.MAX_VALUE,overflow:TextOverflow=TextOverflow.Clip,textAlign:TextAlign?=null){androidx.compose.material3.Text(tr(text),modifier,color=color,style=style,fontWeight=fontWeight,maxLines=maxLines,overflow=overflow,textAlign=textAlign)}
+@Composable fun UiText(text:String,modifier:Modifier=Modifier,color:Color=Color.Unspecified,style:TextStyle=androidx.compose.material3.LocalTextStyle.current,fontWeight:FontWeight?=null,maxLines:Int=Int.MAX_VALUE,overflow:TextOverflow=TextOverflow.Clip,textAlign:TextAlign?=null){androidx.compose.material3.Text(tr(text),modifier,color=color,style=style,fontWeight=fontWeight?.let{adjustedFontWeight(it,LocalFontWeightAdjustment.current)},maxLines=maxLines,overflow=overflow,textAlign=textAlign)}

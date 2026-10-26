@@ -83,7 +83,7 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
             }
         }
     }
-    ClashTheme(state.theme,state.language,state.fontScale) {
+    ClashTheme(state.theme,state.language,state.fontScale,state.fontWeight) {
         val dockBackdrop = rememberDockBackdrop()
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (LocalSageGlass.current) androidx.compose.foundation.Image(

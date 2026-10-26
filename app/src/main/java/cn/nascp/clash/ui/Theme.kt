@@ -48,7 +48,7 @@ private val Dark = darkColorScheme(
     error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6))
 
-@Composable fun ClashTheme(theme: String, language:String="zh", fontScale:Float=1f, content: @Composable () -> Unit) {
+@Composable fun ClashTheme(theme: String, language:String="zh", fontScale:Float=1f, fontWeight:Int=0, content: @Composable () -> Unit) {
     val dark = when (theme) { "dark" -> true; "light", "plain" -> false; else -> isSystemInDarkTheme() }
     val view = LocalView.current
     SideEffect {
@@ -60,7 +60,7 @@ private val Dark = darkColorScheme(
         }
     }
     val density=LocalDensity.current
-    CompositionLocalProvider(LocalPlain provides true,LocalLanguage provides language,LocalDensity provides Density(density.density,density.fontScale*fontScale)) {
+    CompositionLocalProvider(LocalFontWeightAdjustment provides fontWeight,LocalPlain provides true,LocalLanguage provides language,LocalDensity provides Density(density.density,density.fontScale*fontScale)) {
     MaterialTheme(colorScheme = animatedColors(if (dark) Dark else Light),
         shapes = Shapes(extraSmall = RoundedCornerShape(12.dp), small = RoundedCornerShape(16.dp),
             medium = RoundedCornerShape(18.dp), large = RoundedCornerShape(24.dp), extraLarge = RoundedCornerShape(28.dp)), typography = Typography(
@@ -77,7 +77,7 @@ private val Dark = darkColorScheme(
         bodyLarge = type.bodyLarge.copy(fontSize = 14.sp, lineHeight = 20.sp),
         bodyMedium = type.bodyMedium.copy(fontSize = 12.sp, lineHeight = 18.sp),
         labelLarge = type.labelLarge.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
-    ) }, content = content)
+    ) }.withWeightAdjustment(fontWeight), content = content)
     }
 }
 
@@ -104,4 +104,18 @@ private val Dark = darkColorScheme(
         surfaceContainerHigh = color(target.surfaceContainerHigh),
         surfaceContainerHighest = color(target.surfaceContainerHighest)
     )
+}
+
+internal val LocalFontWeightAdjustment = androidx.compose.runtime.staticCompositionLocalOf { 0 }
+internal fun adjustedFontWeight(weight:FontWeight?, adjustment:Int):FontWeight =
+    FontWeight(((weight ?: FontWeight.Normal).weight + adjustment).coerceIn(100,900))
+
+internal fun Typography.withWeightAdjustment(adjustment:Int):Typography {
+    fun androidx.compose.ui.text.TextStyle.adjusted() = copy(fontWeight=adjustedFontWeight(fontWeight,adjustment))
+    return copy(
+        displayLarge=displayLarge.adjusted(),displayMedium=displayMedium.adjusted(),displaySmall=displaySmall.adjusted(),
+        headlineLarge=headlineLarge.adjusted(),headlineMedium=headlineMedium.adjusted(),headlineSmall=headlineSmall.adjusted(),
+        titleLarge=titleLarge.adjusted(),titleMedium=titleMedium.adjusted(),titleSmall=titleSmall.adjusted(),
+        bodyLarge=bodyLarge.adjusted(),bodyMedium=bodyMedium.adjusted(),bodySmall=bodySmall.adjusted(),
+        labelLarge=labelLarge.adjusted(),labelMedium=labelMedium.adjusted(),labelSmall=labelSmall.adjusted())
 }
