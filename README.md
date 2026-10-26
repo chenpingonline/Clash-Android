@@ -8,7 +8,7 @@
 
 ## 下载与安装
 
-当前正式版：**[0.3.0](https://github.com/chenpingonline/Clash-Android/releases/tag/v0.3.0)**。
+当前正式版：**[0.3.1](https://github.com/chenpingonline/Clash-Android/releases/tag/v0.3.1)**。
 
 | 项目 | 说明 |
 | --- | --- |
@@ -18,7 +18,7 @@
 | 安装包 | `Clash-Android-0.2.45-arm64.apk`，约 24.6 MiB |
 | 构建方式 | release 构建，启用 R8 优化和资源裁剪，使用专用发行签名 |
 
-在 [Releases](https://github.com/chenpingonline/Clash-Android/releases) 下载 APK，按 Android 提示允许安装并完成安装。每个正式 Release 同时提供 SHA-256 校验文件；重建已发布版本时，请使用该 Release 附带的 `-source.tar.gz` 对应源码快照。
+在 [Releases](https://github.com/chenpingonline/Clash-Android/releases) 下载 APK，按 Android 提示允许安装并完成安装。正式 Release 仅上传 APK，SHA-256 校验值由 GitHub 提供；对应源码可从 Release 的 Source code 入口下载。
 
 ### 从开发版迁移
 
