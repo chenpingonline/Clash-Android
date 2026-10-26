@@ -160,7 +160,7 @@ func previewProxies(r request) (any, error) {
 		all = append(all, groupNames...)
 		result["GLOBAL"] = map[string]any{"type": "Selector", "all": all}
 	}
-	return map[string]any{"proxies": result, "pendingProviders": pending}, nil
+	return map[string]any{"proxies": result, "pendingProviders": pending, "groupOrder": groupNames}, nil
 }
 func previewString(v any) string { s, _ := v.(string); return s }
 func previewList(v any) []any    { s, _ := v.([]any); return s }
@@ -247,4 +247,16 @@ func previewCachedProvider(p map[string]any) ([]any, bool) {
 	}
 	list, ok := doc["proxies"].([]any)
 	return list, ok
+}
+
+// Read the final merged configuration, not map iteration or GLOBAL membership.
+func proxyGroupOrder(doc map[string]any) []string {
+	names := []string{}
+	for _, raw := range previewList(doc["proxy-groups"]) {
+		group, _ := raw.(map[string]any)
+		if name := previewString(group["name"]); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
 }

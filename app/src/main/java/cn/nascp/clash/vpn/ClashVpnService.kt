@@ -11,6 +11,7 @@ import cn.nascp.clash.MainActivity
 import cn.nascp.clash.core.NativeCore
 import cn.nascp.clash.data.ClashRepository
 import cn.nascp.clash.data.VpnPhase
+import cn.nascp.clash.data.stringList
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -70,7 +71,7 @@ class ClashVpnService : VpnService() {
                     tun = actualBuilder.establish() ?: error("VPN授权已失效，请重新授权")
                     val runtime=NativeCore.invoke("start", "yaml" to profile.yaml, "name" to profile.name, "selections" to repo.selections(profile.id), "global" to repo.extensions("global"), "extensions" to repo.extensions(profile.id), "fd" to tun!!.fd, "secret" to repo.secret, "mtu" to mtu, "ipv6" to ipv6) as org.json.JSONObject
                     check(!stopping) { "启动已取消" }
-                    repo.phase(VpnPhase.RUNNING, profile.id)
+                    repo.phase(VpnPhase.RUNNING, profile.id, groupOrder=runtime.optJSONArray("groupOrder").stringList())
                     if(runtime.optInt("invalidSelections")>0)repo.message("部分预选节点已失效，已使用当前可用节点")
                     getSystemService(NotificationManager::class.java).notify(1, notification("VPN已启动 · ${profile.name}"))
                     geoJob?.cancel()

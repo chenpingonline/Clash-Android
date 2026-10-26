@@ -33,6 +33,7 @@ class MotionNavigationTest {
         try {
             repo.theme("light"); repo.language("zh"); repo.fontScale(1f); repo.clearMessage()
             ui.waitForIdle(); click("设置"); ui.waitForIdle()
+            val parentLeft = ui.onNodeWithText("外观与语言",useUnmergedTree=true).getUnclippedBoundsInRoot().left
             ui.mainClock.autoAdvance = false
             ui.onNodeWithText("VPN 设置").performClick()
             ui.mainClock.advanceTimeBy(96); ui.waitForIdle()
@@ -56,11 +57,16 @@ class MotionNavigationTest {
             settle()
             ui.onNodeWithTag("route:vpn").assertExists()
             assertTrue("Cancelled gesture must return to origin", ui.onNodeWithTag("route:vpn").getUnclippedBoundsInRoot().left == toolbarLeft)
-            ui.runOnUiThread { ui.activity.onBackPressedDispatcher.dispatchOnBackStarted(event(0f)) }
+            ui.runOnUiThread { ui.activity.onBackPressedDispatcher.dispatchOnBackStarted(event(0f, androidx.activity.BackEventCompat.EDGE_RIGHT)) }
             ui.mainClock.advanceTimeBy(32)
-            ui.runOnUiThread { ui.activity.onBackPressedDispatcher.dispatchOnBackProgressed(event(0.6f)) }
-            ui.mainClock.advanceTimeBy(48)
+            ui.runOnUiThread { ui.activity.onBackPressedDispatcher.dispatchOnBackProgressed(event(0.6f, androidx.activity.BackEventCompat.EDGE_RIGHT)) }
+            ui.mainClock.advanceTimeBy(240); ui.waitForIdle()
+            assertTrue("Held right-edge gesture must not move the page", ui.onNodeWithTag("route:vpn").getUnclippedBoundsInRoot().left == toolbarLeft)
             ui.runOnUiThread { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.mainClock.advanceTimeBy(96); ui.waitForIdle()
+            val returningLeft = ui.onNodeWithText("外观与语言",useUnmergedTree=true).getUnclippedBoundsInRoot().left
+            assertTrue("Return must have an intermediate frame approaching from the left", returningLeft < parentLeft - 1.dp && returningLeft > parentLeft - 110.dp)
+            capture("back-release-intermediate.png")
             settle()
             ui.onNodeWithTag("route:settings").assertExists()
             ui.onNodeWithTag("route:vpn").assertDoesNotExist()

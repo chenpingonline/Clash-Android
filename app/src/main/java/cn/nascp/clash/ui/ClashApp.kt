@@ -2,9 +2,7 @@
 package cn.nascp.clash.ui
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.SeekableTransitionState
-import androidx.compose.animation.core.rememberTransition
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -66,7 +64,7 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
     val busy by vm.busy.collectAsStateWithLifecycle()
     val proxyUi = rememberProxyUiState(state, vm)
     // Share the snapshot between the toolbar and list, and prepare it while Home is visible.
-    val proxyCatalog = key(state.selected, state.previewRevision, state.phase == VpnPhase.RUNNING) { rememberProxyCatalog(state.visibleProxies) }
+    val proxyCatalog = key(state.selected, state.previewRevision, state.phase == VpnPhase.RUNNING) { rememberProxyCatalog(state.visibleProxies, state.visibleProxyGroupOrder) }
     val messageId=state.messageId
     val messageText=state.error
     val messageKind=state.messageKind
@@ -99,34 +97,14 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
         focusManager.clearFocus();keyboard?.hide()
         if (stack.size > 1) stack = stack.dropLast(1)
     }
-    val navigationState = remember { SeekableTransitionState(stack) }
-    val navigation = rememberTransition(navigationState, label = "navigation")
+    // Back gestures commit a destination only after release. Use a normal transition
+    // so interrupted entry/return animations retain their current positions instead
+    // of reversing a stale seek fraction with a second duration/easing clock.
+    val navigation = updateTransition(stack, label = "navigation")
     var predictiveBack by remember { mutableStateOf(false) }
     val tabEasing = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
     val enterEasing = CubicBezierEasing(0.18f, 0.72f, 0.2f, 1f)
     val returnEasing = CubicBezierEasing(0.2f, 0.5f, 0.2f, 1f)
-    LaunchedEffect(stack, predictiveBack) {
-        if (!predictiveBack) {
-            val remaining = when {
-                navigationState.targetState == stack -> 1f - navigationState.fraction
-                navigationState.currentState == stack -> navigationState.fraction
-                else -> 1f
-            }
-            val tabSwitch = navigationState.currentState.last() in tabs && stack.last() in tabs
-            val cancelled = navigationState.currentState == stack && navigationState.targetState != stack
-            val returning = stack.size < maxOf(navigationState.currentState.size, navigationState.targetState.size)
-            val duration = when {
-                tabSwitch -> 260
-                cancelled -> 260
-                returning -> 440
-                else -> 560
-            }
-            // Preserve a short settling phase even when a gesture ends close to an edge.
-            val minimum = if (!tabSwitch && remaining > 0.001f) 120 else 1
-            navigationState.animateTo(stack, tween((duration * remaining).toInt().coerceAtLeast(minimum),
-                easing = if (tabSwitch) tabEasing else if (returning || cancelled) returnEasing else enterEasing))
-        }
-    }
     PredictiveBackHandler(enabled = stack.size > 1) { progress ->
         val origin = stack
         predictiveBack = true
@@ -159,7 +137,10 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
                 val from = initialState.last(); val to = targetState.last()
                 val tabSwitch = from in tabs && to in tabs
                 val direction = (if (layoutDirection == LayoutDirection.Rtl) -1 else 1)
-                val motion = tween<androidx.compose.ui.unit.IntOffset>(360, easing = LinearEasing)
+                val entering = targetState.size > initialState.size
+                val motion = tween<androidx.compose.ui.unit.IntOffset>(
+                    if (tabSwitch) 260 else if (entering) 440 else 360,
+                    easing = if (tabSwitch) tabEasing else if (entering) enterEasing else returnEasing)
                 if (tabSwitch) {
                     val tabDirection = (if (tabs.indexOf(to) > tabs.indexOf(from)) 1 else -1) * direction
                     (slideInHorizontally(motion) { tabDirection * it } togetherWith
@@ -179,7 +160,8 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
         val navigate: (String) -> Unit = { if (stack == visibleStack && !predictiveBack) go(it) }
         val navigateBack: () -> Unit = { if (stack == visibleStack && !predictiveBack) back() }
         val displacement by navigation.animateFloat(
-            transitionSpec = { tween(360, easing = LinearEasing) }, label = "pageExposure:$route"
+            transitionSpec = { tween(if (targetState.size > initialState.size) 440 else 360,
+                easing = if (targetState.size > initialState.size) enterEasing else returnEasing) }, label = "pageExposure:$route"
         ) { if (it == visibleStack) 0f else 1f }
         val foreground = visibleStack.size > minOf(navigation.currentState.size, navigation.targetState.size)
         Box(Modifier.fillMaxSize()

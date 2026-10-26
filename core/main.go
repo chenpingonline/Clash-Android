@@ -183,7 +183,7 @@ func dispatch(r request)(any,error) {
         hub.ApplyConfig(cfg)
         if !listener.GetTunConf().Enable {stopRuntime();logsMu.Lock();reason:=tunFailure;logsMu.Unlock();return nil,fmt.Errorf("TUN启动失败: %s",reason)}
         running=true
-        return map[string]any{"started":true,"geoAuto":geoAuto,"geoInterval":geoInterval,"invalidSelections":invalidSelections(cfg,r.Selections)},nil
+        return map[string]any{"started":true,"groupOrder":proxyGroupOrder(platform),"geoAuto":geoAuto,"geoInterval":geoInterval,"invalidSelections":invalidSelections(cfg,r.Selections)},nil
     case "stop":
         stopRuntime()
         return "stopped",nil

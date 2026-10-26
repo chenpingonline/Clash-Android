@@ -103,8 +103,8 @@ import org.json.JSONObject
 @Immutable internal data class ProxyCatalog(val groups: List<ProxyGroup> = emptyList()) {
     val leaves = groups.flatMap { it.nodes }.filter { !it.group && it.testable }.distinctBy { it.name }
 }
-internal fun proxyCatalog(proxies: JSONObject): ProxyCatalog = ProxyCatalog(
-    proxies.keys().asSequence().filter { proxies.optJSONObject(it)?.has("all") == true }.map { name ->
+internal fun proxyCatalog(proxies: JSONObject, groupOrder: List<String> = emptyList()): ProxyCatalog = ProxyCatalog(
+    (groupOrder.asSequence() + proxies.keys().asSequence()).distinct().filter { proxies.optJSONObject(it)?.has("all") == true }.map { name ->
         val group = proxies.getJSONObject(name)
         val all = group.getJSONArray("all")
         ProxyGroup(name, group.optString("type"), group.optString("now"),
@@ -114,10 +114,10 @@ internal fun proxyCatalog(proxies: JSONObject): ProxyCatalog = ProxyCatalog(
             })
     }.toList())
 
-@Composable internal fun rememberProxyCatalog(proxies: JSONObject): ProxyCatalog {
-    val catalog by produceState(ProxyCatalog(), proxies) {
+@Composable internal fun rememberProxyCatalog(proxies: JSONObject, groupOrder: List<String> = emptyList()): ProxyCatalog {
+    val catalog by produceState(ProxyCatalog(), proxies, groupOrder) {
         if (proxies.length() == 0) value = ProxyCatalog()
-        else value = withContext(Dispatchers.Default) { proxyCatalog(proxies) }
+        else value = withContext(Dispatchers.Default) { proxyCatalog(proxies, groupOrder) }
     }
     return catalog
 }
@@ -130,7 +130,7 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
         }
     }
 @Composable internal fun ProxyToolbar(s: AppState, vm: MainViewModel, ui: ProxyUiState, go: (String) -> Unit,
-                                     catalog: ProxyCatalog = rememberProxyCatalog(s.visibleProxies)) {
+                                     catalog: ProxyCatalog = rememberProxyCatalog(s.visibleProxies, s.visibleProxyGroupOrder)) {
     val busy by vm.busy.collectAsState()
     var menu by remember { mutableStateOf(false) }
     val query = ui.query; val protocol = ui.protocol
@@ -153,7 +153,7 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
 
 @Composable internal fun ProxyList(s: AppState, vm: MainViewModel, go: (String) -> Unit,
                                   ui: ProxyUiState = rememberProxyUiState(s, vm),
-                                  catalog: ProxyCatalog = rememberProxyCatalog(s.visibleProxies)) {
+                                  catalog: ProxyCatalog = rememberProxyCatalog(s.visibleProxies, s.visibleProxyGroupOrder)) {
     ProxyListContent(catalog, s.selected?.id, s.phase == VpnPhase.RUNNING, vm, go, ui, s)
 }
 

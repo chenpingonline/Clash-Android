@@ -29,9 +29,9 @@ import org.json.JSONObject
         color=MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=.85f))
 }
 
-@Composable internal fun NavigationGroup(title:String,routes:List<String>,go:(String)->Unit) {
+@Composable internal fun NavigationGroup(title:String?,routes:List<String>,go:(String)->Unit) {
     Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-        SectionHeading(title)
+        if(title != null)SectionHeading(title)
         @Composable fun Rows() {
             routes.forEachIndexed { index,id ->
                 if(index>0 && LocalPlain.current)Spacer(Modifier.height(1.dp))
@@ -54,11 +54,11 @@ import org.json.JSONObject
         drawRect(Brush.verticalGradient(listOf(background.copy(alpha=0f),background),
             startY=top,endY=size.height),topLeft=Offset(0f,top),size=Size(size.width,fadeHeight))
     }) {
-        NavigationGroup("日常使用",listOf("appearance","vpn"),go)
-        NavigationGroup("自动化",listOf("automation","system"),go)
-        NavigationGroup("数据与维护",listOf("backup","core"),go)
-        NavigationGroup("高级",listOf("global-enhancements","remote"),go)
-        NavigationGroup("应用",listOf("about"),go)
+        NavigationGroup(null,listOf("appearance","vpn"),go)
+        NavigationGroup(null,listOf("automation","system"),go)
+        NavigationGroup(null,listOf("backup","core"),go)
+        NavigationGroup(null,listOf("global-enhancements","remote"),go)
+        NavigationGroup(null,listOf("about"),go)
     }
     }
     }

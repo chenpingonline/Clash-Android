@@ -32,11 +32,13 @@ data class AppState(
     val totalUp: Long = 0, val totalDown: Long = 0, val mode: String = "rule",
     val exitLocation: ExitLocation? = null, val exitLoading: Boolean = false, val exitError: String = "",
     val preview: JSONObject = JSONObject(), val previewProfile: Profile? = null, val previewId: String = "", val previewRevision: Long = 0,
+    val previewGroupOrder: List<String> = emptyList(), val runtimeGroupOrder: List<String> = emptyList(),
     val previewReady: Boolean = false, val previewError: Boolean = false, val pendingProviders: List<String> = emptyList(),
     val proxyLoaded: Boolean = false, val controllerError: Boolean = false, val proxyError: Boolean = false, val connectionsError: Boolean = false, val logsError: Boolean = false,
     val proxies: JSONObject = JSONObject(), val connections: JSONArray = JSONArray(), val logs: List<String> = emptyList()
 ) {
     val selected: Profile? get() = profiles.firstOrNull { it.id == selectedId }
+    val visibleProxyGroupOrder: List<String> get() = if (phase == VpnPhase.RUNNING) runtimeGroupOrder else if (previewId == selectedId && previewProfile == selected && previewReady) previewGroupOrder else emptyList()
     val visibleProxies: JSONObject get() = if (phase == VpnPhase.RUNNING) proxies else if (previewId == selectedId && previewProfile == selected && previewReady) preview else JSONObject()
 }
 
@@ -87,6 +89,7 @@ class ClashRepository private constructor(context: Context) {
                     mutable.update { current ->
                         if (current.selected != profile || current.previewRevision != revision || current.phase == VpnPhase.RUNNING) current
                         else current.copy(previewId=profile.id, previewProfile=profile, previewReady=true, previewError=result.isFailure,
+                            previewGroupOrder=result.getOrNull()?.optJSONArray("groupOrder").stringList(),
                             preview=previewWithSelections(result.getOrNull()?.optJSONObject("proxies") ?: JSONObject(), profile.id),
                             pendingProviders=result.getOrNull()?.optJSONArray("pendingProviders")?.let { array -> (0 until array.length()).map(array::getString) } ?: emptyList())
                     }
@@ -174,7 +177,7 @@ class ClashRepository private constructor(context: Context) {
     fun clearMessage(expectedId: Long? = null) {
         mutable.update { if(expectedId == null || it.messageId == expectedId) it.copy(error = "", messageId = it.messageId + 1) else it }
     }
-    fun phase(phase: VpnPhase, activeId: String = "", error: String = "") { synchronized(selectionLock) { mutable.update { it.copy(phase = phase, activeId = activeId, runtimeRevision=it.runtimeRevision+1, error = error, messageKind = if(error.isBlank())MessageKind.INFO else MessageKind.ERROR, messageId = it.messageId + 1, up=0, down=0, exitLocation=null,exitLoading=false,exitError="", proxyLoaded=false,controllerError=false,proxyError=false,connectionsError=false,logsError=false, proxies=JSONObject(), connections=JSONArray()) } } }
+    fun phase(phase: VpnPhase, activeId: String = "", error: String = "", groupOrder: List<String> = emptyList()) { synchronized(selectionLock) { mutable.update { it.copy(phase = phase, activeId = activeId, runtimeGroupOrder=groupOrder, runtimeRevision=it.runtimeRevision+1, error = error, messageKind = if(error.isBlank())MessageKind.INFO else MessageKind.ERROR, messageId = it.messageId + 1, up=0, down=0, exitLocation=null,exitLoading=false,exitError="", proxyLoaded=false,controllerError=false,proxyError=false,connectionsError=false,logsError=false, proxies=JSONObject(), connections=JSONArray()) } } }
     fun language(value:String){require(value in listOf("zh","en"));prefs.edit().putString("language",value).apply();mutable.update{it.copy(language=value)}}
     fun fontWeight(value:Int){require(value in setOf(-100,0,100));prefs.edit().putInt("fontWeight",value).apply();mutable.update{it.copy(fontWeight=value)}}
     fun fontScale(value:Float){require(value in 0.8f..1.5f);prefs.edit().putFloat("fontScale",value).apply();mutable.update{it.copy(fontScale=value)}}
@@ -496,3 +499,5 @@ rules:
 """
     }
 }
+
+internal fun JSONArray?.stringList(): List<String> = if (this == null) emptyList() else (0 until length()).map(::getString)

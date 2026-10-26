@@ -41,6 +41,9 @@ proxy-groups:
 	}
 	result := value.(map[string]any)
 	proxies := result["proxies"].(map[string]any)
+	if got := strings.Join(result["groupOrder"].([]string), ","); got != "Manual,Auto" {
+		t.Fatal(got)
+	}
 	names := proxies["Manual"].(map[string]any)["all"].([]string)
 	if strings.Join(names, ",") != "HK,DIRECT,Cache HK,Inline JP" {
 		t.Fatal(names)
@@ -84,10 +87,25 @@ proxy-groups: [{name: Group, type: select, proxies: [Original], use: [escape]}]
 	}
 	result := value.(map[string]any)
 	proxies := result["proxies"].(map[string]any)
+	if got := strings.Join(result["groupOrder"].([]string), ","); got != "EnhancedGroup" {
+		t.Fatal(got)
+	}
 	if proxies["Enhanced"] == nil || proxies["Original"] != nil || proxies["Escaped"] != nil {
 		t.Fatal(proxies)
 	}
 	if len(result["pendingProviders"].([]string)) != 1 {
 		t.Fatal(result)
+	}
+}
+
+func TestRuntimeGroupOrder(t *testing.T) {
+	doc := map[string]any{"proxy-groups": []any{
+		map[string]any{"name": "Zebra"}, map[string]any{"name": "Alpha"}, map[string]any{"name": "GLOBAL"},
+	}}
+	if got := strings.Join(proxyGroupOrder(doc), ","); got != "Zebra,Alpha,GLOBAL" {
+		t.Fatal(got)
+	}
+	if len(proxyGroupOrder(nil)) != 0 {
+		t.Fatal("empty config invented groups")
 	}
 }
