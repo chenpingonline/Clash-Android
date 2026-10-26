@@ -61,8 +61,8 @@ internal fun connectionUid(connection:JSONObject):Int? = connection.optJSONObjec
 
 @Composable private fun ApplicationIcon(app:ConnectionApplication?) {
     if(app?.icon!=null && !app.shared)Image(app.icon.asImageBitmap(),contentDescription=null,
-        modifier=Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).testTag("connection-app-icon:${app.packages.singleOrNull().orEmpty()}"))
-    else Icon(Icons.Outlined.Apps,contentDescription=null,modifier=Modifier.size(36.dp).testTag("connection-app-icon:unknown"),tint=MaterialTheme.colorScheme.onSurfaceVariant)
+        modifier=Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).testTag("connection-app-icon:${app.packages.singleOrNull().orEmpty()}"))
+    else Icon(Icons.Outlined.Apps,contentDescription=null,modifier=Modifier.size(28.dp).testTag("connection-app-icon:unknown"),tint=MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable internal fun connectionAppTitle(app:ConnectionApplication?):String=when {
@@ -72,11 +72,11 @@ internal fun connectionUid(connection:JSONObject):Int? = connection.optJSONObjec
 }
 
 @Composable internal fun ActivityConnectionRow(title:String,subtitle:String,app:ConnectionApplication?,onClick:()->Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick=onClick).padding(horizontal=12.dp,vertical=12.dp),
-        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+    Row(Modifier.fillMaxWidth().clickable(onClick=onClick).heightIn(min=64.dp).padding(horizontal=18.dp,vertical=8.dp),
+        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
         ApplicationIcon(app)
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-            UiText(connectionAppTitle(app),style=MaterialTheme.typography.titleSmall,maxLines=1,overflow=TextOverflow.Ellipsis)
+            UiText(connectionAppTitle(app),style=MaterialTheme.typography.titleMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
             UiText(title,style=MaterialTheme.typography.bodyMedium,maxLines=2,overflow=TextOverflow.Ellipsis)
             UiText(subtitle,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -88,7 +88,7 @@ internal fun connectionUid(connection:JSONObject):Int? = connection.optJSONObjec
     val apps=rememberConnectionApplications(connections)
     val app=connectionUid(connection)?.let(apps::get)
     Panel {
-        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
             ApplicationIcon(app)
             Column(Modifier.weight(1f)) {
                 UiText("应用",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)

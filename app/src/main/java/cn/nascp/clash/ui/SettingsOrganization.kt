@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.unit.dp
@@ -39,10 +43,17 @@ import org.json.JSONObject
 }
 
 @Composable internal fun SettingsHome(go:(String)->Unit) {
-    // Settings rows must remain outside the floating dock's touch region.
-    androidx.compose.foundation.layout.Box(Modifier.padding(bottom=LocalDockClearance.current)) {
+    // Keep rows outside the dock touch area, but soften the viewport's cut edge.
+    val background = MaterialTheme.colorScheme.background
+    Box(Modifier.padding(bottom=LocalDockClearance.current)) {
     CompositionLocalProvider(LocalDockClearance provides 0.dp) {
-    Page {
+    Page(Modifier.drawWithContent {
+        drawContent()
+        val fadeHeight = 24.dp.toPx().coerceAtMost(size.height)
+        val top = size.height - fadeHeight
+        drawRect(Brush.verticalGradient(listOf(background.copy(alpha=0f),background),
+            startY=top,endY=size.height),topLeft=Offset(0f,top),size=Size(size.width,fadeHeight))
+    }) {
         NavigationGroup("日常使用",listOf("appearance","vpn"),go)
         NavigationGroup("自动化",listOf("automation","system"),go)
         NavigationGroup("数据与维护",listOf("backup","core"),go)

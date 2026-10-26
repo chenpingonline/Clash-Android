@@ -8,7 +8,7 @@
 
 ## 下载与安装
 
-当前正式版：**[0.2.45](https://github.com/chenpingonline/Clash-Android/releases/tag/v0.2.45)**。
+当前正式版：**[0.3.0](https://github.com/chenpingonline/Clash-Android/releases/tag/v0.3.0)**。
 
 | 项目 | 说明 |
 | --- | --- |

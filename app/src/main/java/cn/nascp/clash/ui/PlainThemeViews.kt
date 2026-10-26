@@ -49,9 +49,9 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
 @Composable internal fun PlainEntry(title: String, subtitle: String = "", icon: ImageVector,
                                     onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
-        .heightIn(min = if (LocalPlainCompact.current) { if (subtitle.isBlank()) 48.dp else 56.dp } else if (subtitle.isBlank()) 54.dp else 64.dp)
+        .heightIn(min = if (subtitle.isBlank()) 56.dp else 64.dp)
         .padding(horizontal = 2.dp, vertical = if (LocalPlainCompact.current) 6.dp else 8.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         PlainIcon(icon)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             UiText(title, style = MaterialTheme.typography.titleMedium)
@@ -69,7 +69,8 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
     }
 }
 
-@Composable internal fun PlainDivider() = HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+// Keep row spacing without a visible rule inside grouped cards.
+@Composable internal fun PlainDivider() = Spacer(Modifier.height(1.dp))
 
 @Composable internal fun PlainHome(s: AppState, start: () -> Unit, stop: () -> Unit,
                                    go: (String) -> Unit, vm: MainViewModel) {
@@ -168,13 +169,13 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
         SectionHeading("语言与字体")
         Panel {
             SettingChoiceEntry("语言", listOf("zh" to "简体中文", "en" to "English"), s.language, vm.repo::language)
-            HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(8.dp))
             FontScaleControl(s.fontScale, vm.repo::fontScale)
-            HorizontalDivider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(16.dp))
             FontWeightControl(s.fontWeight, vm.repo::fontWeight)
             UiText("调整后即时生效，保留标题与正文的粗细层次。", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            PlainDivider()
             Entry("系统字体设置", "应用字体会叠加系统字号", Icons.Outlined.TextFields) {
                 context.startActivity(android.content.Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS))
             }

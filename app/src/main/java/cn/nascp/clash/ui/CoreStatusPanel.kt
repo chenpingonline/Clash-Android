@@ -47,7 +47,7 @@ import cn.nascp.clash.data.VpnPhase
         }
         UiText("arm64-v8a · ${tr("内核随应用版本交付")}",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(Modifier.height(8.dp))
         @Composable fun Validate(modifier: Modifier) {
             FilledTonalButton(onClick = onValidate, enabled = enabled && state.selected != null,
                 modifier = modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(12.dp),

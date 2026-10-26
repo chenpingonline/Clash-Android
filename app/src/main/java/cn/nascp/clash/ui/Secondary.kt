@@ -281,13 +281,13 @@ private data class InstalledApp(val label:String,val packageName:String,val icon
                         Row(Modifier.fillMaxWidth().testTag("app-row:${app.packageName}")
                             .then(if(selectable)Modifier.toggleable(value=chosen,role=androidx.compose.ui.semantics.Role.Checkbox,
                                 onValueChange={checked->if(checked)selected.add(app.packageName)else selected.remove(app.packageName)})else Modifier)
-                            .padding(horizontal=16.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                            Image(app.icon,contentDescription=null,modifier=Modifier.size(40.dp))
-                            Column(Modifier.weight(1f)){UiText(app.label);UiText(app.packageName,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
+                            .heightIn(min=64.dp).padding(horizontal=18.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+                            Image(app.icon,contentDescription=null,modifier=Modifier.size(28.dp))
+                            Column(Modifier.weight(1f)){UiText(app.label,style=MaterialTheme.typography.titleMedium);UiText(app.packageName,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
                             if(selectable)Icon(if(chosen)Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,null,
                                 Modifier.size(24.dp).testTag("app-choice:${app.packageName}"),tint=if(chosen)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                         }
-                        if(index<filtered.lastIndex)HorizontalDivider(Modifier.padding(start=68.dp,end=16.dp),color=MaterialTheme.colorScheme.outlineVariant.copy(alpha=.5f))
+                        if(index<filtered.lastIndex)PlainDivider()
                     }
                 }
             }

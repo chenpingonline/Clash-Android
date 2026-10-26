@@ -73,7 +73,7 @@ private val Dark = darkColorScheme(
      ).let { type -> type.copy(
         headlineMedium = type.headlineMedium.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
         titleLarge = type.titleLarge.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Medium),
-        titleMedium = type.titleMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
+        titleMedium = type.titleMedium.copy(fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium),
         bodyLarge = type.bodyLarge.copy(fontSize = 14.sp, lineHeight = 20.sp),
         bodyMedium = type.bodyMedium.copy(fontSize = 12.sp, lineHeight = 18.sp),
         labelLarge = type.labelLarge.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)

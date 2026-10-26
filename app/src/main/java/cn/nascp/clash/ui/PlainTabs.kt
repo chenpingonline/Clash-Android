@@ -71,19 +71,19 @@ import java.util.Locale
                             val updated = remember(profile.updated) {
                                 SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(profile.updated))
                             }
-                            if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                            if (index > 0) PlainDivider()
                             val selectionInteraction=remember(profile.id){MutableInteractionSource()}
                             val pressed by selectionInteraction.collectIsPressedAsState()
                             val selectionColor by animateColorAsState(
                                 if(selected || pressed)MaterialTheme.colorScheme.primary.copy(alpha=when {selected && pressed->.20f;selected->.12f;else->.08f}) else Color.Transparent,
                                 label = "profile-selection")
-                            Row(Modifier.fillMaxWidth().background(selectionColor).heightIn(min = 72.dp).padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().background(selectionColor).heightIn(min = 64.dp).padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                 // Share selection press feedback across the row, while keeping the menu action independent.
                                 Row(Modifier.weight(1f).selectable(selected = selected, enabled = canSwitch,
                                     interactionSource=selectionInteraction,indication=null,
                                     role = Role.RadioButton, onClick = { if (!selected) vm.run { vm.repo.selectProfile(profile.id) } })
-                                    .testTag("profile-select:${profile.id}").padding(start = 14.dp, end = 2.dp, top = 12.dp, bottom = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    .testTag("profile-select:${profile.id}").padding(start = 18.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                                     PlainIcon(Icons.Outlined.Description)
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                         UiText(profile.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)

@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 // A settings row has one editable value, rather than a second card inside its group.
 internal val LocalPlainSubpage = staticCompositionLocalOf { false }
@@ -38,7 +39,7 @@ internal val LocalPlainSettingGroup = staticCompositionLocalOf { false }
         BasicTextField(value, onChange, Modifier.fillMaxWidth().testTag("setting-field:$label")
             .semantics { contentDescription = description }, singleLine = !multiline,
             keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=if(isNumericField(label))androidx.compose.ui.text.input.KeyboardType.Number else androidx.compose.ui.text.input.KeyboardType.Text),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 24.sp,
                 color = MaterialTheme.colorScheme.onSurface, textAlign = if (inline) TextAlign.End else TextAlign.Start),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             visualTransformation = if (secret && !visible) PasswordVisualTransformation() else VisualTransformation.None,
@@ -52,19 +53,19 @@ internal val LocalPlainSettingGroup = staticCompositionLocalOf { false }
                     }
                 }
                 if (inline) {
-                    Row(Modifier.heightIn(min = 54.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.heightIn(min = 56.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         PlainIcon(settingIcon(label))
                         UiText(label, Modifier.weight(1.1f), style = MaterialTheme.typography.titleMedium)
                         Box(Modifier.weight(1f)) { Value() }
                     }
                 } else {
                     Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             PlainIcon(settingIcon(label))
                             UiText(label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                         }
-                        Box(Modifier.fillMaxWidth().padding(start = 44.dp, bottom = 4.dp)) { Value() }
+                        Box(Modifier.fillMaxWidth().padding(start = 42.dp, bottom = 4.dp)) { Value() }
                     }
                 }
             })
@@ -79,9 +80,9 @@ internal val LocalPlainSettingGroup = staticCompositionLocalOf { false }
 
 @Composable internal fun PlainSettingToggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     @Composable fun Content() {
-        Row(Modifier.fillMaxWidth().heightIn(min = 54.dp)
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
             .toggleable(checked, role = Role.Switch, onValueChange = onChange).padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             PlainIcon(settingIcon(label))
             UiText(label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             Switch(checked, onCheckedChange = null, colors = SwitchDefaults.colors(

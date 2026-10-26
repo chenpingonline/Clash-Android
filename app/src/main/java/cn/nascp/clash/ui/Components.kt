@@ -30,7 +30,7 @@ internal val LocalPlainCompact = staticCompositionLocalOf { false }
 @Composable fun Panel(content: @Composable ColumnScope.() -> Unit) {
     Surface(contentColor = MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(24.dp), color = if (LocalSageGlass.current || LocalPearlGlass.current) MaterialTheme.colorScheme.surface.copy(alpha = 0.76f) else MaterialTheme.colorScheme.surface, border = if (LocalPlain.current) null else BorderStroke(if (LocalSageGlass.current || LocalPearlGlass.current) 1.dp else 0.5.dp, if (LocalSageGlass.current || LocalPearlGlass.current) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
         androidx.compose.runtime.CompositionLocalProvider(LocalPlainSettingGroup provides LocalPlainSubpage.current) {
-            Column(Modifier.padding(if (LocalPlainSubpage.current) 14.dp else if (LocalPlainCompact.current) 12.dp else if (LocalPlain.current) 14.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (LocalPlainCompact.current) 6.dp else if (LocalPlain.current) 8.dp else 12.dp), content = content)
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(if (LocalPlainCompact.current) 6.dp else if (LocalPlain.current) 8.dp else 12.dp), content = content)
         }
     }
 }
@@ -85,7 +85,7 @@ internal val LocalPlainCompact = staticCompositionLocalOf { false }
 }
 @Composable fun MainButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     if (LocalPlainSubpage.current) {
-        PlainActionSurface(onClick, Modifier.fillMaxWidth(), enabled, minHeight = 54.dp,
+        PlainActionSurface(onClick, Modifier.fillMaxWidth(), enabled, minHeight = 56.dp,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) { UiText(label) }
         return
     }
@@ -130,7 +130,7 @@ fun bytes(value: Long): String = when {
 ) {
     if (LocalPlainSubpage.current && label != null && singleLine) {
         // Import-name/address fields use the same borderless row vocabulary.
-        Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+        Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
             androidx.compose.foundation.text.BasicTextField(value, onValueChange, Modifier.fillMaxWidth().padding(14.dp),
                 textStyle = textStyle.copy(color = MaterialTheme.colorScheme.onSurface), singleLine = true,
                 visualTransformation = visualTransformation,

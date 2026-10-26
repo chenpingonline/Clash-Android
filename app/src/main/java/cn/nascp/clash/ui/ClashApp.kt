@@ -129,22 +129,21 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
     }
     PredictiveBackHandler(enabled = stack.size > 1) { progress ->
         val origin = stack
-        val parent = origin.dropLast(1)
         predictiveBack = true
         try {
-            // Seek the same transition used by button Back; release continues from here.
-            navigationState.snapTo(origin)
-            progress.collect { event ->
-                if (stack == origin) navigationState.seekTo(event.progress, parent)
-            }
+            // Consume the gesture without moving the page. Normal completion means
+            // the user released to commit; cancellation must leave the stack intact.
+            progress.collect { }
             if (stack == origin) back()
         } finally {
-            // Cancellation leaves the stack intact and animates back to the origin.
+            // On release, the normal stack transition animates the confirmed return.
             predictiveBack = false
         }
     }
     ClashTheme(state.theme,state.language,state.fontScale,state.fontWeight) {
-        val dockBackdrop = rememberDockBackdrop()
+        // AnimatedContent draws outgoing and incoming pages together. Each source must
+        // own its recording layers; sharing one lets the later page overwrite both.
+        val dockBackdrops = tabs.associateWith { tab -> key(tab) { rememberDockBackdrop() } }
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (LocalSageGlass.current) androidx.compose.foundation.Image(
             painter = androidx.compose.ui.res.painterResource(cn.nascp.clash.R.drawable.sage_mist),
@@ -176,6 +175,7 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
                 }
             }) { visibleStack ->
         val route = visibleStack.last()
+        val dockBackdrop = dockBackdrops[route]
         val navigate: (String) -> Unit = { if (stack == visibleStack && !predictiveBack) go(it) }
         val navigateBack: () -> Unit = { if (stack == visibleStack && !predictiveBack) back() }
         val displacement by navigation.animateFloat(
@@ -220,7 +220,7 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
             ) else padding
             CompositionLocalProvider(LocalDockClearance provides (if (floatingDock) padding.calculateBottomPadding() else 0.dp), LocalOperationBusy provides busy) {
             Box(Modifier.padding(layoutPadding).fillMaxSize().imePadding()
-                .then(if (floatingDock) Modifier.dockBackdropSource(dockBackdrop, if (LocalPlain.current) MaterialTheme.colorScheme.background else Color.Transparent,
+                .then(if (floatingDock) Modifier.dockBackdropSource(requireNotNull(dockBackdrop), if (LocalPlain.current) MaterialTheme.colorScheme.background else Color.Transparent,
                     fadeColor = if (LocalPlain.current) MaterialTheme.colorScheme.background else null) else Modifier)) {
                 Column(Modifier.fillMaxSize()) {
                 AnimatedVisibility(route != "profiles" && (busy || state.phase in listOf(VpnPhase.STARTING, VpnPhase.STOPPING)),
@@ -267,7 +267,7 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
         }
         }
         if (sharedDock) Box(Modifier.align(Alignment.BottomCenter)) {
-            BottomDock(stack.last(), backdrop = if (LocalPlain.current || LocalPearlGlass.current) dockBackdrop else null) {
+            BottomDock(stack.last(), backdrop = if (LocalPlain.current || LocalPearlGlass.current) dockBackdrops[stack.last()] else null) {
                 if (!predictiveBack) stack = listOf(it)
             }
         }

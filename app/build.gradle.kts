@@ -27,8 +27,8 @@ android {
         applicationId = if (distributionRelease) "cn.chenpingonline.clash" else "cn.nascp.clash.dev"
         minSdk = 29
         targetSdk = 36
-        versionCode = 49
-        versionName = if (distributionRelease) "0.2.47" else "0.2.47-dev"
+        versionCode = 50
+        versionName = if (distributionRelease) "0.3.0" else "0.3.0-dev"
         manifestPlaceholders["appLabel"] = if (distributionRelease) "Clash" else "Clash Dev"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
