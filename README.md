@@ -30,15 +30,19 @@
 
 在 `local.properties` 设置 `sdk.dir`，或设置 `ANDROID_HOME`。NDK 可用 `ANDROID_NDK_HOME` 指定。
 
+默认打包和交付均使用精简包，统一执行 `./scripts/build.sh`；只有明确需要调试时才运行 `./scripts/build-debug.sh`。
+
 ```sh
-./scripts/build-debug.sh
-# 产物 dist/Clash-Android-0.2.6-dev-arm64.apk
+./scripts/build.sh
+# 精简本地测试包：dist/Clash-Android-<version>-compact-local-arm64.apk
 ./gradlew :app:testDebugUnitTest :app:connectedDebugAndroidTest
 cd core
 go test -race ./... clashmanager/configyaml clashmanager/ruleimport
 ```
 
 首次构建需下载 Gradle/Maven/Go 依赖。脚本依次导出共享包、构建 JNI、构建 APK；普通 Gradle 不会自动重建 Go。网络集成测试需按 [0.2.1 验证记录](docs/qa/0.2.1/README.md) 启动本地夹具并传入参数。
+
+精简脚本使用 release 构建，启用 R8 代码优化与资源裁剪，并排除仅供 debug 使用的 Compose 调试工具；JNI 桥接类与原生回调通过定向规则保留。功能与内核保持完整。为便于本地覆盖安装，脚本显式使用本机 debug 证书；不是正式发行签名。直接运行 `assembleRelease` 不会自动使用 debug 签名。混淆映射会以同名 `.mapping.txt` 复制到 `dist/`，排查该构建崩溃时需要保留对应映射。
 
 应用 ID `cn.nascp.clash.dev`，仅使用本地 debug 签名。未提交、推送、发布或配置 GitHub Actions。
 

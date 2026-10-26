@@ -53,8 +53,10 @@ class SubscriptionHttpTest {
     @Test fun diagnosticCandidatesDeduplicateWithoutLosingCurrentLabel() {
         val candidates=subscriptionProbeCandidates(CFA_SUBSCRIPTION_UA)
         assertEquals(2,candidates.size)
-        assertEquals("当前 / CFA" to CFA_SUBSCRIPTION_UA,candidates.first())
-        assertEquals(listOf("Custom/1",CFA_SUBSCRIPTION_UA,CMFA_SUBSCRIPTION_UA),subscriptionProbeCandidates(" Custom/1 ").map{it.second})
+        assertEquals("当前" to CFA_SUBSCRIPTION_UA,candidates.first())
+        assertEquals("默认" to DEFAULT_SUBSCRIPTION_UA,candidates.last())
+        assertEquals(listOf("Custom/1",DEFAULT_SUBSCRIPTION_UA),subscriptionProbeCandidates(" Custom/1 ").map{it.second})
+        assertEquals(listOf("当前 / 默认" to DEFAULT_SUBSCRIPTION_UA),subscriptionProbeCandidates(DEFAULT_SUBSCRIPTION_UA))
         assertTrue(runCatching{subscriptionProbeCandidates("bad\nagent")}.isFailure)
     }
 
