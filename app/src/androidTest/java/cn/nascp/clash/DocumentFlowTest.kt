@@ -35,17 +35,17 @@ class DocumentFlowTest {
    ui.waitUntil(10000){repo.state.value.error=="备份已导出"};ui.onNodeWithContentDescription("关闭提示").performClick()
    val exported=device.executeShellCommand("cat /sdcard/Download/$name.json")
    assertEquals("clash-android",JSONObject(exported).getString("format"));runBlocking{repo.validateBackup(exported)}
-   click("导出当前 YAML");saveAs("$name.yaml")
+   ui.openSettingsPage("profile");click("导出当前 YAML");saveAs("$name.yaml")
    ui.waitUntil(10000){repo.state.value.error=="已导出原始配置"};ui.onNodeWithContentDescription("关闭提示").performClick()
    assertEquals(ClashRepository.SAMPLE,device.executeShellCommand("cat /sdcard/Download/$name.yaml"))
    // Restore from an actual SAF selection, including validation and confirmation.
    runBlocking{repo.saveProfile("Modified document fixture",ClashRepository.SAMPLE,repo.state.value.selectedId)}
-   click("选择备份并校验")
+   ui.openSettingsPage("backup");click("选择备份并校验")
    val file=By.text("$name.json")
    assertTrue("Exported backup not visible in picker",device.wait(Until.hasObject(file),5000));device.findObject(file).click()
    ui.waitUntil(5000){ui.onAllNodesWithText("确认恢复").fetchSemanticsNodes().isNotEmpty()};click("确认恢复")
    ui.waitUntil(5000){repo.state.value.error=="备份已恢复"};assertEquals("Document fixture",repo.state.value.selected!!.name)
-   ui.onNodeWithContentDescription("关闭提示").performClick();ui.onNodeWithContentDescription("返回").performClick();click("关于与更新");click("诊断与导出")
+   ui.onNodeWithContentDescription("关闭提示").performClick();ui.onNodeWithContentDescription("返回").performClick();ui.openSettingsPage("diagnostics")
    click("导出诊断 ZIP");saveAs("$name.zip")
    ui.waitUntil(10000){repo.state.value.error=="诊断包已导出"}
    val zip=android.util.Base64.decode(device.executeShellCommand("base64 /sdcard/Download/$name.zip"),android.util.Base64.DEFAULT)

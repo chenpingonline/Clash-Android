@@ -32,7 +32,7 @@ class ClashVpnService : VpnService() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("vpn", "VPN运行状态", NotificationManager.IMPORTANCE_LOW))
     }
     private fun notification(text: String) = NotificationCompat.Builder(this, "vpn")
-        .setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle("Clash Dev").setContentText(text)
+        .setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle(applicationInfo.loadLabel(packageManager)).setContentText(text)
         .setContentIntent(PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE))
         .addAction(0, "停止", PendingIntent.getService(this, 1, Intent(this, ClashVpnService::class.java).setAction(STOP), PendingIntent.FLAG_IMMUTABLE))
         .setOngoing(true).build()

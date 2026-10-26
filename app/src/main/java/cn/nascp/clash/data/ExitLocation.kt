@@ -2,6 +2,7 @@ package cn.nascp.clash.data
 
 import kotlinx.coroutines.*
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.URL
@@ -9,15 +10,19 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicReference
 
 internal val exitLocationServices=listOf(
-    "https://ipwho.is/?lang=zh-CN&fields=success,message,ip,country,country_code,region,city,timezone",
-    "https://api.ip.sb/geoip", "https://get.geojs.io/v1/ip/geo.json", "https://ipapi.co/json",
-    "https://api.ipapi.is/", "https://ip.api.skk.moe/cf-geoip")
+    "https://ipwho.is/?lang=zh-CN",
+    "https://ip.api.skk.moe/cf-geoip",
+    "https://api.ipapi.is/",
+    "https://api.ip.sb/geoip",
+    "https://get.geojs.io/v1/ip/geo.json",
+    "https://ipapi.co/json")
 
 data class ExitLocation(val ip:String,val country:String="",val countryCode:String="",val region:String="",val city:String="",
-                        val timezone:String="",val utcOffset:String="",val elapsedMillis:Long=0,val updatedAt:Long=System.currentTimeMillis())
+                        val timezone:String="",val utcOffset:String="",val elapsedMillis:Long=0,val updatedAt:Long=System.currentTimeMillis(),
+                        val organization:String="",val asn:Long=0,val asnOrganization:String="",val source:String="")
 
 /** Read only source-address metadata. Never infer that a selected group carried the request. */
-internal fun parseExitLocation(text:String,elapsedMillis:Long):ExitLocation {
+internal fun parseExitLocation(text:String,elapsedMillis:Long,source:String=""):ExitLocation {
     val root=JSONObject(text)
     require(!root.optBoolean("error") && (!root.has("success") || root.optBoolean("success")))
     fun clean(value:String)=value.filter{!it.isISOControl()}.trim().take(128)
@@ -36,17 +41,43 @@ internal fun parseExitLocation(text:String,elapsedMillis:Long):ExitLocation {
     val zone=nested?.opt("timezone") ?: root.opt("timezone")
     val timezone=clean(when(zone){is String->zone;is JSONObject->field(zone,"id");else->""})
     val offset=clean(if(zone is JSONObject)field(zone,"utc") else field(root,"utc_offset"))
-    return ExitLocation(ip,country,code.uppercase(Locale.ROOT),clean(nested?.let{field(it,"state")} ?: field(root,"region")),
-        clean(nested?.let{field(it,"city")} ?: field(root,"city")),timezone,offset,elapsedMillis)
+    // Providers use distinct schemas: ipapi.is nests ASN, ipwho.is nests connection,
+    // ipapi.co prefixes its ASN with AS, while GeoJS and SKK use flat fields.
+    val connection=root.optJSONObject("connection")
+    val asnObject=root.optJSONObject("asn")
+    val organization=clean(listOf(
+        asnObject?.let{field(it,"org")}.orEmpty(),root.optJSONObject("company")?.let{field(it,"name")}.orEmpty(),
+        connection?.let{field(it,"org").ifBlank{field(it,"isp")}}.orEmpty(),
+        field(root,"organization"),field(root,"isp"),field(root,"org"),field(root,"asOrg"),field(root,"organization_name")
+    ).firstOrNull{it.isNotBlank()}.orEmpty())
+    val asnRaw=asnObject?.opt("asn") ?: connection?.opt("asn") ?: root.opt("asn")
+    val asn=asnRaw?.toString()?.removePrefix("AS")?.toLongOrNull()?.takeIf{it in 1..4294967295L} ?: 0
+    val asnOrganization=clean(listOf(asnObject?.let{field(it,"org")}.orEmpty(),
+        connection?.let{field(it,"isp")}.orEmpty(),field(root,"asn_organization"),field(root,"org"),
+        field(root,"asOrg"),field(root,"organization_name")).firstOrNull{it.isNotBlank()}.orEmpty())
+    return ExitLocation(ip,country,code.uppercase(Locale.ROOT).takeIf{it.matches(Regex("[A-Z]{2}"))}.orEmpty(),
+        clean(nested?.let{field(it,"state")} ?: field(root,"region")),
+        clean(nested?.let{field(it,"city")} ?: field(root,"city")),timezone,offset,elapsedMillis,
+        organization=organization,asn=asn,asnOrganization=asnOrganization,source=source)
 }
 
 /** Uses Android's ordinary sockets, which participate in the app's VPN routing.
  * It must stay outside the synchronized JNI bridge so probing cannot block Stop or stats. */
-internal suspend fun queryExitLocation(endpoints:List<String> = exitLocationServices.shuffled()):ExitLocation = withTimeout(33_000) {
+internal suspend fun queryExitLocation(endpoints:List<String> = exitLocationServices):ExitLocation = withTimeout(33_000) {
     for(endpoint in endpoints) {
         currentCoroutineContext().ensureActive()
         try {
-            return@withTimeout withTimeout(5_000) { fetchExitLocation(endpoint) }
+            return@withTimeout withTimeout(5_000) service@{
+                // Up to two retries share the service's five-second budget.
+                for(attempt in 0..2) {
+                    try { return@service fetchExitLocation(endpoint) }
+                    catch(error:IOException) {
+                        if(attempt==2)throw error
+                        delay(250L shl attempt)
+                    }
+                }
+                error("Unreachable")
+            }
         } catch(timeout:TimeoutCancellationException) { currentCoroutineContext().ensureActive() }
         catch(cancel:CancellationException){throw cancel}
         catch(_:Exception){ /* A fixed UI error is emitted after all services fail. */ }
@@ -82,10 +113,10 @@ private suspend fun fetchExitLocation(endpoint:String):ExitLocation = suspendCan
                 }
                 output.toString(Charsets.UTF_8.name())
             }
-            val result=parseExitLocation(text,(System.nanoTime()-start)/1_000_000)
+            val result=parseExitLocation(text,(System.nanoTime()-start)/1_000_000,url.host)
             continuation.resumeWith(Result.success(result))
         } catch(error:Exception) {
-            if(continuation.isActive)continuation.resumeWith(Result.failure(IllegalStateException("出口信息更新失败，请重试")))
+            if(continuation.isActive)continuation.resumeWith(Result.failure(error))
         } finally { active.getAndSet(null)?.disconnect() }
     }
 }

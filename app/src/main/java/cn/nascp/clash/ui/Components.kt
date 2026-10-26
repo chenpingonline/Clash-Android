@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 internal val LocalPlainCompact = staticCompositionLocalOf { false }
 
 @Composable fun Panel(content: @Composable ColumnScope.() -> Unit) {
-    Surface(contentColor = MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(if (LocalPlain.current) 20.dp else 24.dp), color = if (LocalSageGlass.current || LocalPearlGlass.current) MaterialTheme.colorScheme.surface.copy(alpha = 0.76f) else MaterialTheme.colorScheme.surface, border = if (LocalPlain.current) null else BorderStroke(if (LocalSageGlass.current || LocalPearlGlass.current) 1.dp else 0.5.dp, if (LocalSageGlass.current || LocalPearlGlass.current) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
+    Surface(contentColor = MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(24.dp), color = if (LocalSageGlass.current || LocalPearlGlass.current) MaterialTheme.colorScheme.surface.copy(alpha = 0.76f) else MaterialTheme.colorScheme.surface, border = if (LocalPlain.current) null else BorderStroke(if (LocalSageGlass.current || LocalPearlGlass.current) 1.dp else 0.5.dp, if (LocalSageGlass.current || LocalPearlGlass.current) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
         androidx.compose.runtime.CompositionLocalProvider(LocalPlainSettingGroup provides LocalPlainSubpage.current) {
             Column(Modifier.padding(if (LocalPlainSubpage.current) 14.dp else if (LocalPlainCompact.current) 12.dp else if (LocalPlain.current) 14.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (LocalPlainCompact.current) 6.dp else if (LocalPlain.current) 8.dp else 12.dp), content = content)
         }
@@ -134,7 +134,10 @@ fun bytes(value: Long): String = when {
             androidx.compose.foundation.text.BasicTextField(value, onValueChange, Modifier.fillMaxWidth().padding(14.dp),
                 textStyle = textStyle.copy(color = MaterialTheme.colorScheme.onSurface), singleLine = true,
                 visualTransformation = visualTransformation,
-                decorationBox = { input -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { label(); input() } })
+                decorationBox = { input -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    label()
+                    Row(verticalAlignment=Alignment.CenterVertically) { Box(Modifier.weight(1f)){input()}; trailingIcon?.invoke() }
+                } })
         }
         return
     }

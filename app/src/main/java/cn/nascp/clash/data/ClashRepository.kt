@@ -18,18 +18,22 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
 
+enum class SubscriptionUpdateStatus { DOWNLOADING, UPDATED, STAGED, FAILED }
+
 enum class MessageKind { INFO, ERROR }
 
 enum class VpnPhase { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
 data class AppState(
+    val subscriptionUpdates:Map<String,SubscriptionUpdateStatus> = emptyMap(), val pendingUpdateRevision:Long = 0,
     val ready: Boolean = false, val profiles: List<Profile> = emptyList(), val selectedId: String = "",
-    val activeId: String = "", val runtimeRevision: Long = 0, val phase: VpnPhase = VpnPhase.STOPPED, val error: String = "",
+    val activeId: String = "", val runtimeRevision: Long = 0, val editorEpoch:Long = 0, val phase: VpnPhase = VpnPhase.STOPPED, val error: String = "",
     val messageKind: MessageKind = MessageKind.INFO, val messageId: Long = 0,
     val busy: Boolean = false, val language: String = "zh", val fontScale:Float = 1f, val fontWeight:Int = 0, val theme: String = ThemePreference.DEFAULT, val up: Long = 0, val down: Long = 0,
     val totalUp: Long = 0, val totalDown: Long = 0, val mode: String = "rule",
     val exitLocation: ExitLocation? = null, val exitLoading: Boolean = false, val exitError: String = "",
     val preview: JSONObject = JSONObject(), val previewProfile: Profile? = null, val previewId: String = "", val previewRevision: Long = 0,
     val previewReady: Boolean = false, val previewError: Boolean = false, val pendingProviders: List<String> = emptyList(),
+    val proxyLoaded: Boolean = false, val controllerError: Boolean = false, val proxyError: Boolean = false, val connectionsError: Boolean = false, val logsError: Boolean = false,
     val proxies: JSONObject = JSONObject(), val connections: JSONArray = JSONArray(), val logs: List<String> = emptyList()
 ) {
     val selected: Profile? get() = profiles.firstOrNull { it.id == selectedId }
@@ -39,14 +43,20 @@ data class AppState(
 class ClashRepository private constructor(context: Context) {
     private val context = context.applicationContext
     private val prefs = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+    private val draftWriteLock=Any()
+    private val draftVersions=mutableMapOf<String,Long>()
+    private val pendingEditorDrafts=mutableMapOf<String,String>()
     private val store = ProfileStore(context)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val edits = Mutex()
+    private val subscriptionEdits = Mutex()
     private val trafficSamples=Mutex()
     private val trafficTotals=TrafficTotalsStore(context)
     private val homeVisible=MutableStateFlow(false)
     private val foregroundVisible=MutableStateFlow(false)
+    private val runtimeRefresh = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED)
     private val exitRefresh=MutableStateFlow(0L)
+    internal var runtimeApiFetcher:suspend (String)->JSONObject = { api(it,readTimeoutMillis=3000) }
     internal var exitLocationFetcher:suspend ()->ExitLocation = { queryExitLocation() }
     private val selectionLock = Any()
     private val mutable = MutableStateFlow(AppState(totalUp=trafficTotals.current().upload,totalDown=trafficTotals.current().download,theme = ThemePreference.resolve(prefs.getString("theme", null)),language=prefs.getString("language","zh")!!,fontScale=prefs.getFloat("fontScale",1f),fontWeight=prefs.getInt("fontWeight",0).takeIf{it in setOf(-100,0,100)}?:0))
@@ -84,7 +94,7 @@ class ClashRepository private constructor(context: Context) {
         }
         scope.launch {
             initialization.await()
-            combine(state.map{it.exitRoutingKey()}.distinctUntilChanged(),homeVisible,exitRefresh) { key,visible,revision -> Triple(key,visible,revision) }
+            combine(state.map{it.exitRoutingKey()}.distinctUntilChanged(),homeVisible,foregroundVisible,exitRefresh) { key,home,foreground,revision -> Triple(key,home && foreground,revision) }
                 .distinctUntilChanged().collectLatest { (key,visible,revision) ->
                     if(!visible || key.phase!=VpnPhase.RUNNING || key.groups.isEmpty()) {
                         mutable.update { it.copy(exitLocation=null,exitLoading=false,exitError="") }
@@ -102,6 +112,9 @@ class ClashRepository private constructor(context: Context) {
                             return@collectLatest
                         }
                         mutable.update { if(it.exitRoutingKey()==key && exitRefresh.value==revision)it.copy(exitLocation=result,exitLoading=false,exitError="") else it }
+                        // Match Verge's five-minute refresh while the home page is visible.
+                        delay(300_000)
+                        exitRefresh.update{it+1}
                     } catch(error:Exception) {
                         if(error is CancellationException) {
                             currentCoroutineContext().ensureActive()
@@ -112,22 +125,32 @@ class ClashRepository private constructor(context: Context) {
                 }
         }
         scope.launch {
-            var pollFailures=0
             initialization.await()
             while (isActive) {
                 if(state.value.phase==VpnPhase.RUNNING)runCatching{sampleTraffic()}
-                if (state.value.phase == VpnPhase.RUNNING && foregroundVisible.value) runCatching {
-                    val proxies = api("/proxies").optJSONObject("proxies") ?: JSONObject()
-                    val connections = api("/connections").optJSONArray("connections") ?: JSONArray()
-                    val logs = NativeCore.invoke("logs") as JSONArray
-                    val mode = api("/configs").optString("mode", "rule")
-                    pollFailures=0
-                    mutable.update { if(it.phase==VpnPhase.RUNNING)it.copy(mode=mode,proxies=proxies,connections=connections,logs=(0 until logs.length()).map(logs::getString)) else it }
-                }.onFailure { pollFailures++;if(pollFailures==3)message("内核控制接口暂时不可用；VPN状态与实时数据可能不同步，请检查内核日志",MessageKind.ERROR) }
-                delay(1500)
+                if (state.value.phase == VpnPhase.RUNNING && foregroundVisible.value) refreshRuntime()
+                withTimeoutOrNull(1500) { runtimeRefresh.receive() }
             }
         }
     }
+    fun retryRuntime() { runtimeRefresh.trySend(Unit) }
+    internal suspend fun refreshRuntime() = coroutineScope {
+        val revision = state.value.runtimeRevision
+        if (state.value.phase != VpnPhase.RUNNING) return@coroutineScope
+        suspend fun <T> read(fetch:suspend ()->T, apply:(AppState,Result<T>)->AppState) {
+            val result=runCatching { fetch() }
+            currentCoroutineContext().ensureActive()
+            mutable.update { if(it.phase==VpnPhase.RUNNING && it.runtimeRevision==revision)apply(it,result) else it }
+        }
+        val jobs=listOf(
+            launch { read({runtimeApiFetcher("/proxies").optJSONObject("proxies") ?: JSONObject()}) { s,r -> s.copy(proxies=r.getOrDefault(s.proxies),proxyError=r.isFailure,proxyLoaded=s.proxyLoaded || r.isSuccess) } },
+            launch { read({runtimeApiFetcher("/connections").optJSONArray("connections") ?: JSONArray()}) { s,r -> s.copy(connections=r.getOrDefault(s.connections),connectionsError=r.isFailure) } },
+            launch { read({val logs=NativeCore.invoke("logs") as JSONArray;(0 until logs.length()).map(logs::getString)}) { s,r -> s.copy(logs=r.getOrDefault(s.logs),logsError=r.isFailure) } },
+            launch { read({runtimeApiFetcher("/configs").getString("mode")}) { s,r -> s.copy(mode=r.getOrDefault(s.mode),controllerError=r.isFailure) } }
+        )
+        jobs.joinAll()
+    }
+
     fun homeVisible(visible:Boolean) { homeVisible.value=visible }
     fun foregroundVisible(visible:Boolean) { foregroundVisible.value=visible }
     fun refreshExitLocation() { exitRefresh.update{it+1} }
@@ -151,15 +174,32 @@ class ClashRepository private constructor(context: Context) {
     fun clearMessage(expectedId: Long? = null) {
         mutable.update { if(expectedId == null || it.messageId == expectedId) it.copy(error = "", messageId = it.messageId + 1) else it }
     }
-    fun phase(phase: VpnPhase, activeId: String = "", error: String = "") { synchronized(selectionLock) { mutable.update { it.copy(phase = phase, activeId = activeId, runtimeRevision=it.runtimeRevision+1, error = error, messageKind = if(error.isBlank())MessageKind.INFO else MessageKind.ERROR, messageId = it.messageId + 1, up=0, down=0, exitLocation=null,exitLoading=false,exitError="", proxies=JSONObject(), connections=JSONArray()) } } }
+    fun phase(phase: VpnPhase, activeId: String = "", error: String = "") { synchronized(selectionLock) { mutable.update { it.copy(phase = phase, activeId = activeId, runtimeRevision=it.runtimeRevision+1, error = error, messageKind = if(error.isBlank())MessageKind.INFO else MessageKind.ERROR, messageId = it.messageId + 1, up=0, down=0, exitLocation=null,exitLoading=false,exitError="", proxyLoaded=false,controllerError=false,proxyError=false,connectionsError=false,logsError=false, proxies=JSONObject(), connections=JSONArray()) } } }
     fun language(value:String){require(value in listOf("zh","en"));prefs.edit().putString("language",value).apply();mutable.update{it.copy(language=value)}}
     fun fontWeight(value:Int){require(value in setOf(-100,0,100));prefs.edit().putInt("fontWeight",value).apply();mutable.update{it.copy(fontWeight=value)}}
     fun fontScale(value:Float){require(value in 0.8f..1.5f);prefs.edit().putFloat("fontScale",value).apply();mutable.update{it.copy(fontScale=value)}}
     fun theme(value: String) { val resolved = ThemePreference.resolve(value); prefs.edit().putString("theme", resolved).apply(); mutable.update { it.copy(theme = resolved) } }
-    fun draft(key: String): String = prefs.getString("encrypted-draft.$key", null)?.let(store::decryptText).orEmpty()
+    fun draft(key: String): String = synchronized(draftWriteLock){pendingEditorDrafts[key]}
+        ?: prefs.getString("encrypted-draft.$key", null)?.let(store::decryptText).orEmpty()
     fun saveDraft(key: String, value: String) {
-        prefs.edit().putString("encrypted-draft.$key", store.encryptText(value)).apply()
+        synchronized(draftWriteLock) {
+            draftVersions[key]=(draftVersions[key]?:0)+1
+            pendingEditorDrafts.remove(key)
+            prefs.edit().putString("encrypted-draft.$key", store.encryptText(value)).apply()
+        }
         if (key.startsWith("extension.")) invalidatePreview()
+        if (key.startsWith("pending-update.")) mutable.update { it.copy(pendingUpdateRevision=it.pendingUpdateRevision+1) }
+    }
+    // Leaving an editor must not perform Keystore encryption on the UI thread.
+    // A later save/clear supersedes any still-running snapshot of this draft.
+    internal fun saveEditorDraft(key:String,value:String) {
+        val version=synchronized(draftWriteLock){pendingEditorDrafts[key]=value;((draftVersions[key]?:0)+1).also{draftVersions[key]=it}}
+        scope.launch {
+            val encrypted=store.encryptText(value)
+            synchronized(draftWriteLock) {
+                if(draftVersions[key]==version){prefs.edit().putString("encrypted-draft.$key",encrypted).apply();pendingEditorDrafts.remove(key)}
+            }
+        }
     }
     private fun invalidatePreview() { mutable.update { it.copy(previewRevision=it.previewRevision+1, previewReady=false) } }
     fun extensions(id: String): JSONObject = JSONObject().also { result ->
@@ -230,7 +270,7 @@ class ClashRepository private constructor(context: Context) {
         withContext(Dispatchers.IO){beginJournal()}
         try { withContext(Dispatchers.IO){store.save(updated)};writeExtensions(p.id,next);journal.delete() }
         catch(e:Exception){ withContext(Dispatchers.IO){recoverJournal()};throw e }
-        mutable.update { it.copy(profiles=updated) }
+        mutable.update { it.copy(profiles=updated,editorEpoch=it.editorEpoch+1) }
     }
     fun backup(includeSettings:Boolean=true):String {
         val profiles=JSONArray();state.value.profiles.forEach { p -> profiles.put(JSONObject().put("id",p.id).put("name",p.name).put("yaml",p.yaml).put("source",p.source).put("userAgent",p.userAgent).put("updated",p.updated)) }
@@ -239,6 +279,7 @@ class ClashRepository private constructor(context: Context) {
             val name=key.removePrefix("encrypted-draft.")
             if(!name.startsWith("history.") && name!="connection" && (includeSettings || name.startsWith("extension."))) settings.put(name,draft(name))
         }
+        if(includeSettings)synchronized(draftWriteLock){pendingEditorDrafts.forEach{(key,value)->settings.put(key,value)}}
         val assets=JSONObject()
         context.filesDir.resolve("core/rules").listFiles()?.filter{it.name.matches(Regex("import-[a-f0-9]{64}\\.mrs"))}?.forEach{file->require(file.length()<=8*1024*1024);assets.put(file.name,android.util.Base64.encodeToString(file.readBytes(),android.util.Base64.NO_WRAP))}
         return JSONObject().put("assets",assets).put("format","clash-android").put("version",1).put("includesSettings",includeSettings).put("profiles",profiles).put("settings",settings).put("theme",state.value.theme).put("language",state.value.language).put("fontScale",state.value.fontScale).put("fontWeight",state.value.fontWeight).put("selected",state.value.selectedId).toString(2)
@@ -259,7 +300,11 @@ class ClashRepository private constructor(context: Context) {
         val root=validateBackup(text);val items=root.getJSONArray("profiles");val settings=root.getJSONObject("settings")
         val restored=(0 until items.length()).map { val p=items.getJSONObject(it);Profile(p.getString("id"),p.getString("name"),p.getString("yaml"),p.optLong("updated"),p.optString("source"),subscriptionUserAgent(p.optString("userAgent",DEFAULT_SUBSCRIPTION_UA))) }
         val includesSettings=root.optBoolean("includesSettings",true)
-        val editor=prefs.edit();prefs.all.keys.filter{it.startsWith("encrypted-draft.") && (includesSettings || it.startsWith("encrypted-draft.extension.") || it.startsWith("encrypted-draft.history.") || it.startsWith("encrypted-draft.editor.") || it.startsWith("encrypted-draft.scratch.") || it.startsWith("encrypted-draft.pending-update."))}.forEach{editor.remove(it)}
+        synchronized(draftWriteLock){
+            pendingEditorDrafts.keys.toList().forEach{key->draftVersions[key]=(draftVersions[key]?:0)+1}
+            pendingEditorDrafts.clear()
+        }
+        val editor=prefs.edit();prefs.all.keys.filter{it.startsWith("encrypted-draft.") && (includesSettings || it.startsWith("encrypted-draft.extension.") || it.startsWith("encrypted-draft.history.") || it.startsWith("encrypted-draft.editor.") || it.startsWith("encrypted-draft.scratch.") || it.startsWith("encrypted-draft.pending-update.") || it.startsWith("encrypted-draft.provider-edit.") || it.startsWith("encrypted-draft.rule-provider.selected."))}.forEach{editor.remove(it)}
         settings.keys().forEach{key->if(includesSettings || key.startsWith("extension."))editor.putString("encrypted-draft.$key",store.encryptText(settings.getString(key)))}
         val theme=ThemePreference.resolve(if(includesSettings)root.optString("theme",ThemePreference.DEFAULT)else state.value.theme)
         val selected=root.optString("selected").takeIf{id->restored.any{it.id==id}}?:restored.firstOrNull()?.id.orEmpty()
@@ -269,7 +314,7 @@ class ClashRepository private constructor(context: Context) {
         editor.putInt("fontWeight",weight).putString("theme",theme).putString("selected",selected).putString("language",language).putFloat("fontScale",scale)
         withContext(Dispatchers.IO){beginJournal()}
         try{withContext(Dispatchers.IO){store.save(restored)};check(editor.commit()){"恢复设置失败"};journal.delete()}catch(e:Exception){withContext(Dispatchers.IO){recoverJournal()};throw e}
-        mutable.update{it.copy(profiles=restored,selectedId=selected,theme=theme,language=language,fontScale=scale,fontWeight=weight,previewRevision=it.previewRevision+1,previewReady=false)}
+        mutable.update{it.copy(subscriptionUpdates=emptyMap(),profiles=restored,selectedId=selected,editorEpoch=it.editorEpoch+1,theme=theme,language=language,fontScale=scale,fontWeight=weight,previewRevision=it.previewRevision+1,previewReady=false)}
         cn.nascp.clash.system.scheduleSubscriptions(context,draft("automation-minutes").toLongOrNull()?.coerceAtLeast(15)?:720L,draft("automation-enabled")=="true")
     }
     suspend fun rendered():String = withContext(Dispatchers.IO) {
@@ -277,6 +322,9 @@ class ClashRepository private constructor(context: Context) {
         NativeCore.invoke("render","yaml" to profile.yaml,"name" to profile.name,"global" to extensions("global"),"extensions" to extensions(profile.id)) as String
     }
     suspend fun saveProfile(name: String, yaml: String, id: String? = null, source: String = "", select: Boolean = true, userAgent: String? = null) = edits.withLock {
+        saveProfileLocked(name,yaml,id,source,select,userAgent)
+    }
+    private suspend fun saveProfileLocked(name:String,yaml:String,id:String?,source:String,select:Boolean,userAgent:String?) {
         initialized()
         check(state.value.phase !in listOf(VpnPhase.STARTING, VpnPhase.STOPPING)) { "VPN状态切换中，请稍后" }
         check(id == null || state.value.activeId != id) { "请先停止VPN再编辑当前运行配置" }
@@ -291,6 +339,40 @@ class ClashRepository private constructor(context: Context) {
         val selected=if(select && state.value.phase in listOf(VpnPhase.STOPPED,VpnPhase.FAILED))profile.id else state.value.selectedId
         prefs.edit().putString("selected", selected).apply()
         mutable.update { it.copy(profiles = updated, selectedId = selected) }
+    }
+    suspend fun updateSubscription(id:String):SubscriptionUpdateStatus = subscriptionEdits.withLock {
+        initialized()
+        val original=state.value.profiles.firstOrNull{it.id==id} ?: error("配置已删除，请重新选择")
+        require(original.source.isNotBlank()){"本地配置无需更新"}
+        fun status(value:SubscriptionUpdateStatus) { mutable.update { it.copy(subscriptionUpdates=it.subscriptionUpdates+(id to value)) } }
+        status(SubscriptionUpdateStatus.DOWNLOADING)
+        try {
+            saveDraft("auto-attempt.$id",System.currentTimeMillis().toString())
+            val yaml=download(original.source,original.userAgent)
+            val result=edits.withLock {
+                val current=state.value.profiles.firstOrNull{it.id==id} ?: error("配置已删除，请重新选择")
+                check(current.source==original.source && current.userAgent==original.userAgent){"订阅信息已变化，请重新更新"}
+                if(state.value.activeId==id || state.value.phase in listOf(VpnPhase.STARTING,VpnPhase.STOPPING)) {
+                    validate(yaml,id);saveDraft("pending-update.$id",yaml)
+                    SubscriptionUpdateStatus.STAGED
+                } else {
+                    saveProfileLocked(current.name,yaml,id,current.source,false,current.userAgent)
+                    saveDraft("pending-update.$id","")
+                    SubscriptionUpdateStatus.UPDATED
+                }
+            }
+            saveDraft("auto-last.$id",System.currentTimeMillis().toString());status(result);result
+        } catch(e:CancellationException) {
+            mutable.update { it.copy(subscriptionUpdates=it.subscriptionUpdates-id) };throw e
+        } catch(e:Exception) {status(SubscriptionUpdateStatus.FAILED);throw e}
+    }
+    suspend fun applyPendingSubscription(id:String) = edits.withLock {
+        val current=state.value.profiles.firstOrNull{it.id==id} ?: error("配置已删除，请重新选择")
+        val yaml=draft("pending-update.$id")
+        require(yaml.isNotBlank()){"没有待应用的更新"}
+        saveProfileLocked(current.name,yaml,id,current.source,false,current.userAgent)
+        saveDraft("pending-update.$id","")
+        mutable.update { it.copy(subscriptionUpdates=it.subscriptionUpdates+(id to SubscriptionUpdateStatus.UPDATED)) }
     }
     fun selectProfile(id: String) {
         check(state.value.phase !in listOf(VpnPhase.STARTING, VpnPhase.RUNNING, VpnPhase.STOPPING)) { "请先停止VPN，再切换配置" }
@@ -330,10 +412,10 @@ class ClashRepository private constructor(context: Context) {
         saveDraft(key, "")
         return content.yaml
     }
-    suspend fun api(path: String, method: String = "GET", data: JSONObject? = null): JSONObject = withContext(Dispatchers.IO) {
+    suspend fun api(path: String, method: String = "GET", data: JSONObject? = null, readTimeoutMillis:Int=20000): JSONObject = withContext(Dispatchers.IO) {
         check(state.value.phase == VpnPhase.RUNNING) { "请先启动VPN" }
-        val connection = URL("http://127.0.0.1:19097$path").openConnection() as HttpURLConnection
-        connection.requestMethod = method; connection.connectTimeout = 3000; connection.readTimeout = 20000
+        val connection = URL("http://127.0.0.1:19097$path").openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection
+        connection.requestMethod = method; connection.connectTimeout = 3000; connection.readTimeout = readTimeoutMillis
         connection.setRequestProperty("Authorization", "Bearer $secret")
         try {
             if (data != null) { connection.doOutput = true; connection.setRequestProperty("Content-Type", "application/json"); connection.outputStream.use { it.write(data.toString().toByteArray()) } }
@@ -385,7 +467,7 @@ class ClashRepository private constructor(context: Context) {
         }
     }
     suspend fun delayTest(name:String):Long {
-        val url=draft("test-url").ifBlank{"https://www.gstatic.com/generate_204"}
+        val url=SpeedTestSettings.effectiveUrl(draft("test-url"))
         val timeout=(draft("test-timeout").toIntOrNull()?:5000).coerceIn(1000,15000)
         return api("/proxies/${java.net.URLEncoder.encode(name,"UTF-8").replace("+","%20")}/delay?timeout=$timeout&url=${java.net.URLEncoder.encode(url,"UTF-8")}").getLong("delay")
     }

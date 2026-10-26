@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -26,8 +27,9 @@ val LocalOperationBusy = staticCompositionLocalOf { false }
 @Composable fun OperationNotice(text: String, kind: MessageKind, onDismiss: () -> Unit) {
     val isError=kind==MessageKind.ERROR
     Surface(
-        modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=6.dp).semantics{liveRegion=LiveRegionMode.Polite},
-        shape=RoundedCornerShape(18.dp),
+        modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=6.dp).testTag("operation-notice").semantics{liveRegion=LiveRegionMode.Polite},
+        shape=RoundedCornerShape(24.dp),
+        shadowElevation=6.dp,
         color=if(isError)MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
         contentColor=if(isError)MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
     ) {

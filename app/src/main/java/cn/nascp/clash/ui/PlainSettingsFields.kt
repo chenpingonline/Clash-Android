@@ -29,16 +29,19 @@ internal val LocalPlainSettingGroup = staticCompositionLocalOf { false }
 
 @Composable internal fun PlainSettingField(label: String, value: String, secret: Boolean = false,
                                          multiline: Boolean = false, onChange: (String) -> Unit) {
+    var visible by remember { mutableStateOf(false) }
+    val numericError = numericFieldError(label,value)
     val large = LocalDensity.current.fontScale > 1.2f
     val description = tr(label)
     val inline = !multiline && !large
     @Composable fun Content() {
         BasicTextField(value, onChange, Modifier.fillMaxWidth().testTag("setting-field:$label")
             .semantics { contentDescription = description }, singleLine = !multiline,
+            keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=if(isNumericField(label))androidx.compose.ui.text.input.KeyboardType.Number else androidx.compose.ui.text.input.KeyboardType.Text),
             textStyle = MaterialTheme.typography.bodyLarge.copy(
                 color = MaterialTheme.colorScheme.onSurface, textAlign = if (inline) TextAlign.End else TextAlign.Start),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+            visualTransformation = if (secret && !visible) PasswordVisualTransformation() else VisualTransformation.None,
             decorationBox = { input ->
                 @Composable fun Value() {
                     Box(Modifier.fillMaxWidth().heightIn(min = if (multiline) 48.dp else 24.dp),
@@ -66,7 +69,12 @@ internal val LocalPlainSettingGroup = staticCompositionLocalOf { false }
                 }
             })
     }
-    if (LocalPlainSettingGroup.current) Content() else PlainSettingGroup { Content() }
+    @Composable fun FieldContent() {
+        Content()
+        if(secret) TextButton(onClick={visible=!visible}) { UiText(if(visible)"隐藏内容" else "显示内容") }
+        if(numericError!=null)UiText(numericError,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
+    }
+    if (LocalPlainSettingGroup.current) FieldContent() else PlainSettingGroup { FieldContent() }
 }
 
 @Composable internal fun PlainSettingToggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
@@ -82,4 +90,19 @@ internal val LocalPlainSettingGroup = staticCompositionLocalOf { false }
         }
     }
     if (LocalPlainSettingGroup.current) Content() else PlainSettingGroup { Content() }
+}
+
+internal fun isNumericField(label:String)= label.contains("端口") || label.startsWith("MTU") || label.contains("分钟") || label.contains("超时")
+internal fun numericFieldError(label:String,value:String):String? {
+    if(!isNumericField(label))return null
+    val range=when { label.startsWith("MTU")->1280L..9000L;label.contains("超时")->1000L..15000L;label.contains("分钟")->15L..Long.MAX_VALUE;label=="端口"->1L..65535L;else->0L..65535L }
+    if(value.isBlank() && label.contains("端口"))return null
+    val number=value.toLongOrNull()
+    return if(number!=null && number in range)null else when {
+        label.startsWith("MTU")->"请输入1280–9000之间的整数"
+        label.contains("超时")->"测速超时需为 1000–15000 ms"
+        label.contains("分钟")->"更新间隔至少为15分钟"
+        label=="端口"->"端口需为1–65535之间的整数"
+        else->"端口需为0–65535之间的整数（0为关闭）"
+    }
 }

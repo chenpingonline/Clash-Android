@@ -24,7 +24,7 @@ class TileIntegrationTest {
    repo.language("zh");repo.fontScale(1f);repo.clearMessage()
    device.executeShellCommand("cmd statusbar remove-tile $component")
    ui.onAllNodesWithText("设置").onLast().performClick()
-   ui.onNodeWithText("自动化与后台").performScrollTo().performClick()
+   ui.onNodeWithText("系统集成与后台").performScrollTo().performClick()
    ui.onNodeWithText("添加到快捷设置").performScrollTo().performClick()
    assertTrue("System add-tile confirmation should appear",device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.text("Clash VPN")),5000))
    assertTrue(device.hasObject(androidx.test.uiautomator.By.pkg("com.android.systemui")))
@@ -55,7 +55,7 @@ class TileIntegrationTest {
    shell("screencap -p /data/local/tmp/clash-quick-settings-connected.png")
    shell("cmd statusbar collapse");ui.waitForIdle()
    ui.onAllNodesWithText("设置").onLast().performClick()
-   ui.onNodeWithText("内核管理").performScrollTo().performClick()
+   ui.onNodeWithText("内核与诊断").performScrollTo().performClick()
    ui.onNodeWithTag("log-level-setting").performScrollTo().performClick()
    ui.onNodeWithTag("log-level-option:debug").performClick()
    ui.waitUntil(5000){runBlocking{repo.api("/configs")}.optString("log-level")=="debug"}
@@ -64,7 +64,7 @@ class TileIntegrationTest {
    shell("cmd statusbar expand-settings");device.waitForIdle()
    shell("screencap -p /data/local/tmp/clash-quick-settings-disconnected.png")
    shell("cmd statusbar collapse");ui.waitForIdle()
-   ui.onNodeWithText("info").performScrollTo().performClick();ui.waitUntil(5000){repo.state.value.error=="请先启动VPN"}
+   ui.onNodeWithTag("log-level-setting").performScrollTo().assertIsNotEnabled()
   }finally{
    shell("cmd statusbar collapse");shell("cmd statusbar set-tiles $original")
    if(repo.state.value.phase!=VpnPhase.STOPPED){ui.activity.startService(Intent(ui.activity,ClashVpnService::class.java).setAction(ClashVpnService.STOP));ui.waitUntil(15000){repo.state.value.phase==VpnPhase.STOPPED}}

@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
         }
         if (selected == "custom") Field("自定义 User-Agent", value) { custom=it; onChange(it) }
         else UiText(value)
-        UiText("默认与 Clash for fnOS 一致；其他 User-Agent 请自定义，仅用于此订阅的下载与更新。")
+        UiText("默认使用 mihomo；其他 User-Agent 请自定义，仅用于此订阅的下载与更新。")
     }
 }
 

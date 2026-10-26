@@ -39,6 +39,46 @@ class HomeNetworkDataTest {
         assertEquals("United States",countryName.country);assertEquals("US",countryName.countryCode)
         for(text in listOf("{\"ip\":\"private.example\"}","{\"ip\":\"999.1.1.1\"}","{\"success\":false,\"ip\":\"203.0.113.2\"}"))assertTrue(runCatching{parseExitLocation(text,0)}.isFailure)
     }
+    @Test fun exitProviderSchemasMapIspAndAsnLikeClashVerge() {
+        val fixtures=listOf(
+            "\"organization\":\"ISP\",\"asn\":13335,\"asn_organization\":\"Network\"",
+            "\"org\":\"ISP\",\"asn\":\"AS13335\"",
+            "\"asn\":{\"asn\":13335,\"org\":\"ISP\"},\"company\":{\"name\":\"Company\"}",
+            "\"connection\":{\"org\":\"ISP\",\"isp\":\"Network\",\"asn\":13335}",
+            "\"asOrg\":\"ISP\",\"asn\":13335",
+            "\"organization_name\":\"ISP\",\"asn\":13335"
+        )
+        for(fields in fixtures) {
+            val result=parseExitLocation("{\"ip\":\"203.0.113.1\",$fields}",1,"fixture.example")
+            assertEquals("ISP",result.organization)
+            assertEquals(13335L,result.asn)
+            assertTrue(result.asnOrganization.isNotBlank())
+            assertEquals("fixture.example",result.source)
+        }
+        val fallback=parseExitLocation("""{"ip":"203.0.113.1","asn":{"asn":-1},"company":{"name":"Fallback"},"country_code":"invalid"}""",1)
+        assertEquals("Fallback",fallback.organization);assertEquals(0L,fallback.asn);assertEquals("",fallback.countryCode)
+    }
+    @Test fun transientExitNetworkFailureRetriesSameService()=runBlocking {
+        tls { server ->
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST))
+            server.enqueue(MockResponse().setBody("{\"ip\":\"203.0.113.9\"}"))
+            val result=queryExitLocation(listOf(server.url("/retry").toString()))
+            assertEquals("203.0.113.9",result.ip);assertEquals("localhost",result.source)
+            assertEquals(2,server.requestCount)
+            repeat(2){assertEquals("/retry",server.takeRequest(2,TimeUnit.SECONDS)!!.path)}
+        }
+    }
+    @Test fun exitRetriesRemainWithinServiceBudgetAndThenFailOver()=runBlocking {
+        tls { server ->
+            server.enqueue(MockResponse().setBody("{\"ip\":\"203.0.113.1\"}").setBodyDelay(6,TimeUnit.SECONDS))
+            server.enqueue(MockResponse().setBody("{\"ip\":\"203.0.113.2\"}"))
+            val started=System.nanoTime()
+            val result=queryExitLocation(listOf(server.url("/slow").toString(),server.url("/fallback").toString()))
+            assertEquals("203.0.113.2",result.ip)
+            assertTrue("Slow provider exceeded its shared budget",(System.nanoTime()-started)/1_000_000<8000)
+            assertEquals(2,server.requestCount)
+        }
+    }
     private suspend fun tls(block:suspend(MockWebServer)->Unit) {
         val certificate=HeldCertificate.Builder().commonName("localhost").addSubjectAlternativeName("localhost").build()
         val server=MockWebServer();server.useHttps(HandshakeCertificates.Builder().heldCertificate(certificate).build().sslSocketFactory(),false);server.start()

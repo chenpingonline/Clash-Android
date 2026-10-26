@@ -49,7 +49,7 @@ class SubscriptionUiTest {
         try {
             repo.language("zh");repo.fontScale(1f);repo.clearMessage()
             ui.onAllNodesWithText("设置").onLast().performClick()
-            click("关于与更新");click("添加配置")
+            ui.openSettingsPage("import")
             ui.onNodeWithText("订阅 User-Agent").assertDoesNotExist()
             ui.onNodeWithText("手动连接诊断").assertDoesNotExist()
             ui.onNodeWithText("配置内容（YAML）").assertDoesNotExist()
@@ -70,13 +70,13 @@ class SubscriptionUiTest {
             assertEquals("FixtureClient/1.0",server.takeRequest().getHeader("User-Agent"))
             click("订阅信息")
             ui.onNodeWithText("自定义 User-Agent").assertExists()
-            fill("自定义 User-Agent",CFA_SUBSCRIPTION_UA);click("保存订阅信息")
+            fill("自定义 User-Agent",CFA_SUBSCRIPTION_UA);click("保存修改")
             ui.waitUntil(5000){repo.state.value.selected?.userAgent==CFA_SUBSCRIPTION_UA}
             ui.onNodeWithContentDescription("关闭提示").performClick()
             ui.onNodeWithContentDescription("返回").performClick();ui.waitForIdle()
             click("订阅信息");ui.onNodeWithText(CFA_SUBSCRIPTION_UA).assertExists()
             screenshot("profile-cfa")
-            click("自定义");fill("自定义 User-Agent"," ");click("保存订阅信息")
+            click("自定义");fill("自定义 User-Agent"," ");click("保存修改")
             ui.waitUntil(5000){repo.state.value.error.isNotBlank()}
             assertEquals(CFA_SUBSCRIPTION_UA,repo.state.value.selected!!.userAgent)
             ui.onNodeWithContentDescription("关闭提示").performClick()
@@ -147,7 +147,7 @@ class SubscriptionUiTest {
             runBlocking{repo.saveProfile("Diagnosis UI fixture",ClashRepository.SAMPLE,source=server.url("/probe?token=fixture").toString(),userAgent=CFA_SUBSCRIPTION_UA)}
             repo.language("zh");repo.fontScale(1f);repo.clearMessage()
             ui.onAllNodesWithText("设置").onLast().performClick()
-            click("关于与更新");click("订阅信息");click("开始对比")
+            ui.openSettingsPage("profile-info");click("开始对比")
             ui.waitUntil(10000){ui.onAllNodesWithText("HTTP 200",substring=true).fetchSemanticsNodes().isNotEmpty()}
             ui.onNodeWithText("HTTP 403",substring=true).assertExists()
             ui.onNodeWithText("HTTP 200",substring=true).assertExists()
@@ -158,7 +158,7 @@ class SubscriptionUiTest {
             click("使用默认身份")
             assertEquals(CFA_SUBSCRIPTION_UA,repo.state.value.selected!!.userAgent)
             ui.onNodeWithText(DEFAULT_SUBSCRIPTION_UA).assertExists()
-            click("保存订阅信息")
+            click("保存修改")
             ui.waitUntil(5000){repo.state.value.selected?.userAgent==DEFAULT_SUBSCRIPTION_UA}
             ui.onNodeWithContentDescription("关闭提示").performClick()
             assertEquals(2,server.requestCount)

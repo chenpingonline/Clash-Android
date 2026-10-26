@@ -13,6 +13,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 /** Canonical labels are resolved before translation, so language never changes an icon. */
 internal fun settingsScreenIcon(route:String):ImageVector = when(route) {
+    "system" -> Icons.Outlined.Notifications
+    "speed-test" -> Icons.Outlined.Speed
+    "global-enhancements", "profile-rules" -> Icons.Outlined.Tune
+    "rule-provider", "runtime-providers" -> Icons.Outlined.Folder
+    "geo-status" -> Icons.Outlined.Public
+    "remote-editor", "remote-workspace" -> Icons.Outlined.Cloud
     "setup" -> Icons.Outlined.Explore
     "import" -> Icons.Outlined.FileDownload
     "profile", "yaml" -> Icons.Outlined.Description
@@ -77,7 +83,7 @@ internal fun settingIcon(label:String):ImageVector {
         "MTU（1280–9000）" -> Icons.Outlined.Straighten
         "绕过局域网 IPv4" -> Icons.AutoMirrored.Outlined.AltRoute
         "排除 IPv4 网段（每行一个 CIDR）" -> Icons.Outlined.Block
-        "测速 HTTPS 地址" -> Icons.Outlined.Speed
+        "测速 HTTPS 地址", "测速地址", "自定义测速地址" -> Icons.Outlined.Speed
         "测速超时（1000–15000 ms）" -> Icons.Outlined.Timer
         "自定义 User-Agent" -> Icons.Outlined.Badge
         "实例名称" -> Icons.Outlined.Devices

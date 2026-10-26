@@ -54,10 +54,26 @@ class ProxyLayoutTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(context.getExternalFilesDir(null), "$name.png")
         ui.waitForIdle()
+        ui.mainClock.advanceTimeBy(600)
+        ui.waitForIdle()
         automation.takeScreenshot().also { image ->
             file.outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; image.recycle()
         }
         ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("cp ${file.absolutePath} /data/local/tmp/$name.png")).use { it.readBytes() }
+    }
+    @Test fun tappingDelaySelectsTheWholeCard() {
+        var selections = 0
+        ui.setContent {
+            ClashTheme("light", "zh", 1f) {
+                ProxyTile("HK 01", "AnyTLS", "", false, false, true,
+                    "150 ms", Modifier.width(180.dp), select = { selections++ })
+            }
+        }
+        ui.onNodeWithTag("proxy-delay:HK 01", useUnmergedTree = true)
+            .assertHasNoClickAction().performTouchInput { click() }
+        ui.runOnIdle { assertEquals(1, selections) }
+        ui.onNodeWithTag("proxy-node:HK 01").performClick()
+        ui.runOnIdle { assertEquals(2, selections) }
     }
     @Test fun groupsCollapseIndependentlyAndGridUsesTwoColumns() {
         screen()
@@ -76,6 +92,23 @@ class ProxyLayoutTest {
         ui.onNodeWithTag("proxy-group:AI").performScrollTo().performClick()
         ui.onAllNodesWithTag("proxy-node:HK 01").assertCountEquals(1)
     }
+    private fun assertHeaderHeightStable(scale: Float) {
+        screen(fixture(listOf("节点选择名称较长时也应保持相同高度")), scale)
+        ui.waitUntil(5000) { ui.onAllNodesWithTag("proxy-node:HK 01").fetchSemanticsNodes().isNotEmpty() }
+        val header = ui.onNodeWithTag("proxy-group:节点选择名称较长时也应保持相同高度")
+        val expandedHeight = header.getUnclippedBoundsInRoot().let { it.bottom - it.top }
+        header.performClick()
+        ui.waitForIdle()
+        assertEquals(expandedHeight.value, header.getUnclippedBoundsInRoot().let { it.bottom - it.top }.value, 0.1f)
+        ui.onNodeWithText("测本组").assertIsDisplayed().performClick()
+        ui.waitUntil(5000) { !controller.testing && controller.results.size == nodes.size }
+        header.performClick()
+        ui.waitForIdle()
+        assertEquals(expandedHeight.value, header.getUnclippedBoundsInRoot().let { it.bottom - it.top }.value, 0.1f)
+    }
+    @Test fun headerHeightStaysStableAndCollapsedGroupCanTest() = assertHeaderHeightStable(1f)
+    @Test fun largeFontHeaderHeightStaysStable() = assertHeaderHeightStable(1.5f)
+
     @Test fun accordionMovesFollowingHeadersThroughIntermediatePositions() {
         screen(fixture(listOf("节点选择", "自动选择")))
         ui.waitUntil(5000) { ui.onAllNodesWithTag("proxy-node:HK 01").fetchSemanticsNodes().isNotEmpty() }
@@ -94,6 +127,23 @@ class ProxyLayoutTest {
             ui.onNodeWithTag("proxy-group:节点选择").performClick();ui.mainClock.advanceTimeBy(500);ui.waitForIdle()
             ui.onNodeWithTag("proxy-node:HK 01").assertIsDisplayed()
         } finally { ui.mainClock.autoAdvance=true }
+    }
+
+    @Test fun collapseSettlesWithoutALatePlacementTail() {
+        screen()
+        ui.waitForIdle()
+        ui.mainClock.autoAdvance = false
+        try {
+            ui.onNodeWithTag("proxy-group:节点选择").performClick()
+            ui.mainClock.advanceTimeBy(320); ui.waitForIdle()
+            val atEnd = groups.drop(1).map { ui.onNodeWithTag("proxy-group:$it").getUnclippedBoundsInRoot().top }
+            ui.mainClock.advanceTimeBy(400); ui.waitForIdle()
+            val settled = groups.drop(1).map { ui.onNodeWithTag("proxy-group:$it").getUnclippedBoundsInRoot().top }
+            atEnd.zip(settled).forEach { (early, late) ->
+                assertTrue("Collapsed headers must not creep after the main motion: $early -> $late",
+                    kotlin.math.abs((early-late).value) <= 0.5f)
+            }
+        } finally { ui.mainClock.autoAdvance = true }
     }
 
     @Test fun largeFontLongNamesAndAutomaticGroups() {

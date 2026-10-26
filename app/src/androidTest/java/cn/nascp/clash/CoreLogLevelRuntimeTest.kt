@@ -32,9 +32,10 @@ class CoreLogLevelRuntimeTest {
             runBlocking{repo.saveProfile("Log level fixture",ClashRepository.SAMPLE.replace("log-level: info","log-level: error"))}
             ParcelFileDescriptor.AutoCloseInputStream(InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("appops set ${ui.activity.packageName} ACTIVATE_VPN allow")).use{it.readBytes()}
             ui.onAllNodesWithText("设置").onLast().performClick()
-            ui.onNodeWithText("内核管理").performScrollTo().performClick()
+            ui.onNodeWithText("内核与诊断").performScrollTo().performClick()
             ui.onNodeWithTag("log-level-setting").performScrollTo().assertIsNotEnabled()
             start()
+            assertEquals("error",runBlocking{repo.api("/configs")}.getString("log-level"))
             ui.waitUntil(5000){ui.onAllNodesWithText("错误 (error)").fetchSemanticsNodes().isNotEmpty()}
             ui.onNodeWithTag("log-level-setting").performScrollTo().performClick()
             ui.onNodeWithTag("log-level-option:debug").performClick()
@@ -42,6 +43,7 @@ class CoreLogLevelRuntimeTest {
             ui.onNodeWithText("调试 (debug)").assertExists()
             stop();ui.onNodeWithText("未运行").assertExists()
             start()
+            assertEquals("error",runBlocking{repo.api("/configs")}.getString("log-level"))
             ui.waitUntil(5000){ui.onAllNodesWithText("错误 (error)").fetchSemanticsNodes().isNotEmpty()}
         } finally { stop();repo.clearMessage();runBlocking{repo.restoreBackup(before)} }
     }

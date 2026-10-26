@@ -3,4 +3,5 @@
 -keep class cn.nascp.clash.core.NativeCore {
     private native java.lang.String call(java.lang.String);
     public static boolean protectSocket(int);
+    public static int connectionOwnerUid(int, java.lang.String, int, java.lang.String, int);
 }

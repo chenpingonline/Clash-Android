@@ -1,15 +1,10 @@
 package cn.nascp.clash.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -232,7 +228,13 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
                     LinearProgressIndicator(progress = { if (ui.total == 0) 0f else ui.completed.toFloat() / ui.total }, modifier = Modifier.fillMaxWidth())
                 }
             }
-            if (running && groups.isEmpty()) item(key = "loading") { Info("正在读取代理组") }
+            if (running && state.proxyError) item(key = "runtime-error") {
+                Panel {
+                    Info("代理组读取失败；已有数据可能不是最新状态")
+                    MainButton("重试"){vm.repo.retryRuntime()}
+                    SubpageTextButton(onClick={go("core")}){UiText("查看内核状态")}
+                }
+            } else if (running && groups.isEmpty()) item(key = "loading") { Info(if(state.proxyLoaded)"当前没有可用代理组" else "正在读取代理组") }
             prepared.forEach { (group, rows, targets) ->
                 val name = group.name
                 val open = name in visibleExpanded
@@ -245,24 +247,33 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
                 }
                 if (open) {
                     if (rows.isEmpty()) item(key = "empty:$name") {
-                        UiText("没有匹配的节点", Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Box(Modifier.fillMaxWidth().padding(top = 6.dp).proxyNodePanel(first = true, last = true).padding(16.dp)) {
+                            UiText("没有匹配的节点", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
-                    itemsIndexed(rows, key = { _, row -> "nodes:$name:${row.joinToString("\u0000") { it.name }}" }, contentType = { _, _ -> "proxy-row" }) { _, row ->
+                    itemsIndexed(rows, key = { _, row -> "nodes:$name:${row.joinToString("\u0000") { it.name }}" }, contentType = { _, _ -> "proxy-row" }) { index, row ->
                         Row(Modifier.animateItem(fadeInSpec = tween(200), fadeOutSpec = tween(140),
-                            placementSpec = tween(260, easing = FastOutSlowInEasing)).fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            placementSpec = tween(260, easing = FastOutSlowInEasing)).fillMaxWidth()
+                            .padding(top = if (index == 0) 6.dp else 0.dp)
+                            .proxyNodePanel(first = index == 0, last = index == rows.lastIndex)
+                            .height(IntrinsicSize.Min)
+                            .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = if (index == rows.lastIndex) 8.dp else 0.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             row.forEach { node ->
                                 ProxyTile(node.name, node.type, node.current, node.group, group.current == node.name,
                                     canSelect = state.phase in listOf(VpnPhase.STOPPED,VpnPhase.FAILED,VpnPhase.RUNNING) && group.type == "Selector" && !busy,
-                                    canTest = running && node.name in targets && !ui.testing && !busy,
-                                    result = if (running) ui.results[node.name] else null, modifier = Modifier.weight(1f),
-                                    select = { vm.run { vm.repo.selectProxy(name, node.name) } },
-                                    test = { ui.test(listOf(node.name)) })
+                                    result = if (running) ui.results[node.name] else null, modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    select = { vm.run { vm.repo.selectProxy(name, node.name) } })
                             }
                             if (row.size < columns) Spacer(Modifier.weight(1f))
                         }
                     }
                 }
-                item(key = "gap:$name") { Spacer(Modifier.animateItem().animateContentSize(tween(220)).height(if (open) 16.dp else 10.dp)) }
+                // Change the layout target once. Animating the gap's size would retarget
+                // all following item placements on every frame and restart their easing.
+                item(key = "gap:$name") {
+                    Spacer(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null,
+                        placementSpec = tween(260, easing = FastOutSlowInEasing)).height(if (open) 16.dp else 10.dp))
+                }
             }
             if (groups.isEmpty()) item(key = "edit") {
                 TextButton(onClick = { go("node-edit") }) { UiText("编辑节点") }
@@ -272,6 +283,12 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
     }
 }
 
+/** A recessed node area spanning lazy rows without composing the whole group. */
+@Composable private fun Modifier.proxyNodePanel(first: Boolean = false, last: Boolean = false): Modifier =
+    background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(
+        topStart = if (first) 16.dp else 0.dp, topEnd = if (first) 16.dp else 0.dp,
+        bottomStart = if (last) 16.dp else 0.dp, bottomEnd = if (last) 16.dp else 0.dp))
+
 @Composable private fun GroupHeader(name: String, groupType: String, current: String, expanded: Boolean, count: Int,
                                     canTest: Boolean, running: Boolean, modifier: Modifier = Modifier, toggle: () -> Unit, test: () -> Unit) {
     val large = LocalDensity.current.fontScale >= 1.3f
@@ -279,17 +296,18 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
     val expansionLabel = tr(if (expanded) "已展开" else "已收起")
     val chevron by animateFloatAsState(if (expanded) 180f else 0f, tween(240, easing = FastOutSlowInEasing), label = "groupChevron")
     Surface(onClick = toggle, shape = RoundedCornerShape(if (plain) 16.dp else 12.dp),
-        color = if (plain) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-        modifier = modifier.animateContentSize(tween(240, easing = FastOutSlowInEasing)).fillMaxWidth().testTag("proxy-group:$name").semantics {
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurface, 0.06f)),
+        modifier = modifier.fillMaxWidth().testTag("proxy-group:$name").semantics {
             stateDescription = expansionLabel
         }) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        UiText(if (!plain && expanded) "$name · $count" else name, Modifier.weight(1f, fill = false),
+                        UiText(if (!plain) "$name · $count" else name, Modifier.weight(1f, fill = false),
                             style = MaterialTheme.typography.titleMedium, fontWeight = if (plain) FontWeight.Medium else FontWeight.SemiBold)
-                        if (plain && expanded) Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                        if (plain) Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                             UiText("$count", Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -298,19 +316,19 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
                     UiText(if (running) "${tr("当前")}：${current.ifBlank { "—" }} · ${tr(type)}" else (if (current.isBlank()) tr("配置预览") else "${tr("预选")}：$current") + " · ${tr(type)}", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                AnimatedVisibility(expanded && !large, enter = fadeIn(tween(160)) + expandHorizontally(tween(220)),
-                    exit = fadeOut(tween(100)) + shrinkHorizontally(tween(220))) {
+                // Keep the same controls and text width in both expansion states.
+                if (!large) {
                     TextButton(onClick = test, enabled = canTest, contentPadding = PaddingValues(horizontal = 8.dp)) { UiText("测本组") }
                 }
                 Icon(Icons.Outlined.ExpandMore, null, Modifier.size(22.dp).rotate(chevron))
             }
-            if (expanded && large) TextButton(onClick = test, enabled = canTest) { UiText("测本组") }
+            if (large) TextButton(onClick = test, enabled = canTest) { UiText("测本组") }
         }
     }
 }
 
-@Composable private fun ProxyTile(name: String, type: String, current: String, group: Boolean, selected: Boolean, canSelect: Boolean,
-                                 canTest: Boolean, result: String?, modifier: Modifier, select: () -> Unit, test: () -> Unit) {
+@Composable internal fun ProxyTile(name: String, type: String, current: String, group: Boolean, selected: Boolean, canSelect: Boolean,
+                                 result: String?, modifier: Modifier, select: () -> Unit) {
     val plain = LocalPlain.current
     val primary = if (plain) PlainBlue else MaterialTheme.colorScheme.primary
     val resultColor = when {
@@ -322,8 +340,8 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
     Surface(modifier.testTag("proxy-node:$name").selectable(selected = selected, enabled = canSelect, role = Role.RadioButton, onClick = select),
         shape = RoundedCornerShape(if (plain) 12.dp else 10.dp),
         color = when { plain && selected -> MaterialTheme.colorScheme.primaryContainer; selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f); else -> MaterialTheme.colorScheme.surface },
-        border = BorderStroke(1.dp, if (selected) primary else if (plain) Color.Transparent else MaterialTheme.colorScheme.outlineVariant)) {
-        Row(Modifier.heightIn(min = 64.dp).padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        border = BorderStroke(1.dp, if (selected) primary else lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.onSurface, 0.05f))) {
+        Row(Modifier.heightIn(min = 64.dp).padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 UiText(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium,
@@ -333,13 +351,11 @@ private fun members(group: ProxyGroup, query: String, protocol: String, sort: St
                     UiText(if (group) tr("代理组") + if (current.isBlank()) "" else " · $current" else type,
                         Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (selected) Icon(Icons.Outlined.CheckCircle, tr("已选择"), Modifier.size(16.dp), tint = primary)
                 }
             }
-            TextButton(onClick = test, enabled = canTest, contentPadding = PaddingValues(horizontal = 4.dp),
-                modifier = Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)) {
-                UiText(result ?: "测速", style = MaterialTheme.typography.bodySmall, color = resultColor)
-            }
+            Spacer(Modifier.width(8.dp))
+            UiText(result ?: "—", Modifier.testTag("proxy-delay:$name"),
+                style = MaterialTheme.typography.bodySmall, color = resultColor)
         }
     }
 }

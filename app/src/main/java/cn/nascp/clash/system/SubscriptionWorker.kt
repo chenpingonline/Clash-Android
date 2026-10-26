@@ -34,12 +34,11 @@ suspend fun ClashRepository.updateSubscriptions(force:Boolean=true):String {
         val last=maxOf(draft("auto-last.${p.id}").toLongOrNull()?:0L,draft("auto-attempt.${p.id}").toLongOrNull()?:0L,p.updated)
         if(!force && System.currentTimeMillis()-last<interval.coerceAtLeast(15)*60_000L)return@forEach
         try{
-            saveDraft("auto-attempt.${p.id}",System.currentTimeMillis().toString())
-            val yaml=download(p.source,p.userAgent)
-            if(state.value.activeId==p.id || state.value.phase in listOf(VpnPhase.STARTING,VpnPhase.STOPPING)){
-                validate(yaml,p.id);saveDraft("pending-update.${p.id}",yaml);staged++
-            }else{saveProfile(p.name,yaml,p.id,p.source,select=false);updated++}
-            saveDraft("auto-last.${p.id}",System.currentTimeMillis().toString())
+            when(updateSubscription(p.id)) {
+                SubscriptionUpdateStatus.UPDATED->updated++
+                SubscriptionUpdateStatus.STAGED->staged++
+                else->Unit
+            }
         }catch(e:CancellationException){throw e}catch(_:Exception){failed++}
     }
     return "已保存 $updated · 待应用 $staged · 失败 $failed"

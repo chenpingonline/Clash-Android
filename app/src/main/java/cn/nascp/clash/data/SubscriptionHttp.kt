@@ -7,8 +7,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 internal const val SUBSCRIPTION_DOWNLOAD_TIMEOUT_MILLIS = 60_000L
 
-// Same subscription identity as the pinned Clash-for-fnOS backend.
-const val DEFAULT_SUBSCRIPTION_UA = "clash-verge/v2.4.3"
+const val DEFAULT_SUBSCRIPTION_UA = "mihomo"
 const val CFA_SUBSCRIPTION_UA = "ClashForAndroid/2.5.12"
 const val CMFA_SUBSCRIPTION_UA = "ClashMetaForAndroid/2.11.36"
 

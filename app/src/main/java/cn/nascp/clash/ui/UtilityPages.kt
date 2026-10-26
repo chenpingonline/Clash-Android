@@ -44,14 +44,13 @@ import org.json.JSONObject
     var settings by rememberSaveable{mutableStateOf(true)}
     var incoming by remember {mutableStateOf("")}
     var summary by remember {mutableStateOf("")}
-    val yamlExport=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/yaml")){uri->if(uri!=null)vm.run{val yaml=vm.repo.state.value.selected?.yaml?:error("未选择配置");withContext(Dispatchers.IO){context.contentResolver.openOutputStream(uri)?.use{it.write(yaml.toByteArray())}?:error("无法导出")};vm.repo.message("已导出原始配置")}}
+
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->if(uri!=null)vm.run{val text=vm.repo.backup(settings);withContext(Dispatchers.IO){context.contentResolver.openOutputStream(uri)?.use{it.write(text.toByteArray())}?:error("无法写入文件")};vm.repo.message("备份已导出")}}
     val restore=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null)vm.run{val text=withContext(Dispatchers.IO){context.contentResolver.openInputStream(uri)?.use{String(it.readBytesLimited(32*1024*1024))}?:error("无法读取备份")};val root=vm.repo.validateBackup(text);incoming=text;summary="校验通过：${root.getJSONArray("profiles").length()}个配置。恢复将替换本地配置与备份中的设置。"}}
     Page {
         Info("备份包含节点密码、订阅地址；包含设置时也包含远程令牌。文件为明文 JSON，请妥善保存。")
         CheckRow("包含应用设置及远程实例",settings){settings=it}
         MainButton("导出完整备份"){export.launch("clash-backup.json")}
-        MainButton("导出当前 YAML"){yamlExport.launch("clash-config.yaml")}
         MainButton("选择备份并校验"){restore.launch(arrayOf("application/json","text/plain","application/octet-stream"))}
         if(incoming.isNotEmpty())InlineConfirmation("恢复备份",summary,"确认恢复",destructive=true,onDismiss={incoming=""}) {
             vm.run{vm.repo.restoreBackup(incoming);incoming="";vm.repo.message("备份已恢复")}
@@ -63,29 +62,66 @@ import org.json.JSONObject
     val context=LocalContext.current
     val text=remember {vm.repo.diagnostics()}
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")){uri->if(uri!=null)vm.run{withContext(Dispatchers.IO){val output=context.contentResolver.openOutputStream(uri)?:error("无法导出");java.util.zip.ZipOutputStream(output).use{zip->zip.putNextEntry(java.util.zip.ZipEntry("diagnostics.json"));zip.write(text.toByteArray());zip.closeEntry();zip.putNextEntry(java.util.zip.ZipEntry("README.txt"));zip.write("不含原始配置、订阅地址、令牌和连接目标。详细日志请在活动页自行检查后导出。".toByteArray());zip.closeEntry()}};vm.repo.message("诊断包已导出")}}
-    Page{Panel{UiText(text)};Info("诊断包仅包含运行摘要，不包含连接目的地址与原始日志。") ; MainButton("导出诊断 ZIP"){export.launch("clash-diagnostics.zip")}}
+    var expanded by rememberSaveable {mutableStateOf(false)}
+    val summary=remember(text){JSONObject(text)}
+    Page {
+        SectionHeading("运行摘要")
+        Panel {
+            UiText("${tr("应用版本")}：${summary.optString("version")}")
+            UiText("Android API：${summary.optInt("sdk")}")
+            UiText("${tr("内核库")}：${tr(if(summary.optBoolean("nativeAvailable"))"可用" else "不可用")}")
+            UiText("VPN：${tr(when(summary.optString("phase")){"RUNNING"->"已连接";"STARTING"->"正在启动…";"STOPPING"->"正在停止…";"FAILED"->"启动失败";else->"未连接"})}")
+            UiText("${tr("配置数量")}：${summary.optInt("profileCount")}")
+            val failure=summary.optString("subscriptionLastError")
+            UiText("${tr("最近订阅错误")}：${failure.ifBlank{tr("无")}}")
+            UiText(java.text.DateFormat.getDateTimeInstance().format(java.util.Date(summary.optLong("time"))))
+        }
+        SubpageTextButton(onClick={expanded=!expanded}){UiText(if(expanded)"收起原始信息" else "展开原始信息")}
+        if(expanded)Panel{androidx.compose.foundation.text.selection.SelectionContainer{UiText(text)}}
+        Info("诊断包仅包含运行摘要，不包含连接目的地址与原始日志。")
+        MainButton("导出诊断 ZIP"){export.launch("clash-diagnostics.zip")}
+    }
 }
 
-@Composable fun RemotePage(vm:MainViewModel) {
-    var instances by remember{mutableStateOf(vm.repo.remotes())}
-    var current by remember{mutableStateOf<RemoteInstance?>(null)}
-    var name by rememberSaveable{mutableStateOf("")};var address by rememberSaveable{mutableStateOf("")};var token by rememberSaveable{mutableStateOf("")}
-    var result by remember{mutableStateOf("")};var content by remember{mutableStateOf(JSONObject())};var tab by rememberSaveable{mutableStateOf("proxies")}
+@Composable fun RemoteWorkspacePage(vm:MainViewModel) {
+    val current=remember{vm.repo.remotes().firstOrNull{it.id==vm.repo.draft("remote-selected")}}
+    var result by remember{mutableStateOf("")}
+    var content by remember{mutableStateOf(JSONObject())}
+    var tab by rememberSaveable{mutableStateOf("proxies")}
     var tested by remember{mutableStateOf(false)}
+    var loading by remember{mutableStateOf(false)}
     var logLines by remember{mutableStateOf(emptyList<String>())}
     var logPaused by rememberSaveable{mutableStateOf(false)}
-    LaunchedEffect(current,tab,tested,logPaused){if(tested&&tab=="logs"&&!logPaused)remoteLogs(current!!).collect{line->logLines=(logLines+line).takeLast(100)}}
+    suspend fun connect() {
+        try {checkNotNull(current);remoteApi(current,"/version");tested=true;result=""}
+        catch(cancel:kotlinx.coroutines.CancellationException){throw cancel}
+        catch(error:Exception){tested=false;result="远程连接失败，请重试"}
+    }
+    LaunchedEffect(current){if(current!=null)connect()}
+    LaunchedEffect(current,tab,tested) {
+        if(tested && tab!="logs") {
+            loading=true
+            try{content=remoteApi(current!!,"/$tab");result=""}
+            catch(cancel:kotlinx.coroutines.CancellationException){throw cancel}
+            catch(error:Exception){result="远程数据读取失败，请重试"}
+            finally{loading=false}
+        }
+    }
+    LaunchedEffect(current,tab,tested,logPaused){
+        if(tested&&tab=="logs"&&!logPaused)try{remoteLogs(current!!).collect{line->logLines=(logLines+line).takeLast(100)}}
+        catch(cancel:kotlinx.coroutines.CancellationException){throw cancel}
+        catch(error:Exception){result="远程日志连接失败，请重试"}
+    }
     Page(sectionMotion(tab)) {
-        Info("独立远程工作区 · 以下操作仅作用于所选远程实例，不改变本机VPN。使用标准Mihomo API；不假定Manager扩展可用。")
-        instances.forEach{instance->Panel{UiText(instance.name);FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)){SubpageTextButton(onClick={current=instance;name=instance.name;address=instance.address;token=instance.token;tested=false;content=JSONObject()}){UiText("选择")};SubpageTextButton(onClick={instances=instances.filterNot{it.id==instance.id};vm.repo.saveRemotes(instances);if(current?.id==instance.id){current=null;tested=false}}){UiText("删除", color = MaterialTheme.colorScheme.error)}}}}
-        Field("实例名称",name){name=it};Field("HTTPS 控制器地址",address){address=it;tested=false};Field("访问令牌",token,true){token=it;tested=false}
-        MainButton("测试并保存"){vm.run{require(name.isNotBlank());val candidate=RemoteInstance(current?.id?:java.util.UUID.randomUUID().toString(),name,address,token);val version=remoteApi(candidate,"/version");current=candidate;instances=instances.filterNot{it.id==candidate.id}+candidate;vm.repo.saveRemotes(instances);tested=true;result="连接成功 · ${version.optString("version")}"}}
-        SubpageTextButton(modifier=Modifier.fillMaxWidth(),onClick={current=null;name="";address="";token="";tested=false;content=JSONObject()}){UiText("新增实例")}
-        if(result.isNotBlank())UiText(result)
+        if(current==null){Info("请返回选择远程实例");return@Page}
+        UiText("${tr("远程实例")}：${current.name}")
+        Info("此工作区只操作所选远程实例，不改变本机 VPN。")
+        if(result.isNotBlank()){Info(result);MainButton("重新连接"){vm.run{connect()}}}
         Choices(listOf("proxies" to "代理","connections" to "连接","rules" to "规则","logs" to "日志"),tab){tab=it;content=JSONObject()}
+        if(loading)LinearProgressIndicator(Modifier.fillMaxWidth())
         if(tested)Row{listOf("rule","global","direct").forEach{mode->SubpageTextButton(onClick={vm.run{remoteApi(current!!,"/configs","PATCH",JSONObject().put("mode",mode));result="远程模式已更新：$mode"}}){UiText(mode)}}}
         if(tab=="logs") { SubpageTextButton(modifier=Modifier.fillMaxWidth(),onClick={logPaused=!logPaused}){UiText(if(logPaused)"继续" else "暂停")};UiText(logLines.joinToString("\n")) }
-        else MainButton("刷新远程数据",tested){vm.run{content=remoteApi(current!!,"/$tab")}}
+        else MainButton("刷新远程数据",tested && !loading){vm.run{content=remoteApi(current!!,"/$tab")}}
         if(tested && tab=="proxies") {
             val proxies=content.optJSONObject("proxies")?:JSONObject()
             proxies.keys().forEach{key->val group=proxies.optJSONObject(key)?:JSONObject();val nodes=group.optJSONArray("all");if(nodes!=null)Panel{UiText("$key · ${group.optString("now")}");for(i in 0 until nodes.length()){val node=nodes.getString(i);SubpageTextButton(enabled=group.optString("type")=="Selector",onClick={vm.run{remoteApi(current!!,"/proxies/${encode(key)}","PUT",JSONObject().put("name",node));content=remoteApi(current!!,"/proxies")}}){UiText(node)}}}}
@@ -103,12 +139,24 @@ import org.json.JSONObject
     var minutes by rememberSaveable{mutableStateOf(vm.repo.draft("automation-minutes").ifBlank{"720"})}
     var last by remember{mutableStateOf(vm.repo.draft("automation-last"))}
     Page{
-        ToggleRow("后台更新订阅",enabled){enabled=it}
-        Field("更新间隔（分钟，至少15）",minutes){minutes=it}
+        SectionHeading("更新计划")
+        PlainSettingGroup {
+            ToggleRow("后台更新订阅",enabled){enabled=it}
+            PlainDivider()
+            Field("更新间隔（分钟，至少15）",minutes){minutes=it}
+        }
         Info("系统按网络、电量与后台限制调度，不保证准点。当前运行配置下载后暂存，停止VPN后在订阅详情应用。GEO 自动更新在内核运行期间按 GEO 页面设置执行。")
-        MainButton("保存更新计划"){vm.run{val interval=minutes.toLong();cn.nascp.clash.system.scheduleSubscriptions(context,interval,enabled);vm.repo.saveDraft("automation-enabled",enabled.toString());vm.repo.saveDraft("automation-minutes",minutes);vm.repo.message("更新计划已保存")}}
+        MainButton("保存更新计划"){vm.run{val interval=minutes.toLongOrNull();require(interval!=null && interval>=15){"更新间隔至少为15分钟"};cn.nascp.clash.system.scheduleSubscriptions(context,interval,enabled);vm.repo.saveDraft("automation-enabled",enabled.toString());vm.repo.saveDraft("automation-minutes",minutes);vm.repo.message("更新计划已保存")}}
+        SectionHeading("手动更新")
         MainButton("立即更新所有订阅"){vm.run{val result=vm.repo.updateSubscriptions();last="${java.util.Date()} · $result";vm.repo.saveDraft("automation-last",last)}}
         UiText(last.ifBlank{"尚无执行记录"})
+    }
+}
+
+@Composable fun SystemIntegrationPage(vm:MainViewModel) {
+    val context=LocalContext.current
+    Page {
+        Info("应用通知、系统后台限制与 VPN 快捷入口")
         SubpageButton(outlined = true, modifier=Modifier.fillMaxWidth(), onClick={context.startActivity(android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))}){UiText("系统电池设置")}
         SubpageButton(outlined = true, modifier=Modifier.fillMaxWidth(), onClick={context.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS))}){UiText("系统始终开启 VPN 设置")}
         SubpageButton(outlined = true, modifier=Modifier.fillMaxWidth(), onClick={context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,context.packageName))}){UiText("通知设置")}
@@ -127,7 +175,14 @@ import org.json.JSONObject
     var userAgent by rememberSaveable(p?.id){mutableStateOf(p?.userAgent ?: DEFAULT_SUBSCRIPTION_UA)}
     var interval by rememberSaveable(p?.id){mutableStateOf(vm.repo.draft("profile-interval.${p?.id}").ifBlank{"720"})}
     val info=runCatching{JSONObject(vm.repo.draft("subscription-info.${p?.source?.hashCode()}").ifBlank{"{}"})}.getOrDefault(JSONObject())
-    Page{Field("名称",name){name=it};Field("HTTPS 订阅地址",source,true){source=it}
+    var subscription by rememberSaveable(p?.id){mutableStateOf(!p?.source.isNullOrBlank())}
+    Page{
+        if(p==null){Info("请先选择配置");return@Page}
+        UiText("${tr("仅作用于配置")}：${p.name}")
+        Field("名称",name){name=it}
+        if(!subscription)SubpageTextButton(onClick={subscription=true}){UiText("关联订阅地址")}
+        if(subscription) {
+        Field("HTTPS 订阅地址",source,true){source=it}
         SubscriptionUserAgentField(userAgent){userAgent=it}
         if(source.isNotBlank())SubscriptionConnectionDiagnostics(source,userAgent){userAgent=it}
         Panel{UiText("订阅信息");if(info.has("total")){UiText("${bytes(info.optLong("upload")+info.optLong("download"))} / ${bytes(info.getLong("total"))}")}else UiText("配额未提供")
@@ -136,7 +191,8 @@ import org.json.JSONObject
         val diagnostic=vm.repo.draft("subscription-error.${p?.source?.hashCode()}")
         if(diagnostic.isNotBlank())Panel{UiText("最近下载失败");UiText(diagnostic)}
         Field("更新间隔（分钟，至少15）",interval){interval=it}
-        MainButton("保存订阅信息",p!=null){vm.run{if(source.isNotBlank())require(java.net.URL(source).protocol=="https");require(interval.toLong()>=15);vm.repo.saveProfile(name,p!!.yaml,p.id,source,userAgent=userAgent);vm.repo.saveDraft("profile-interval.${p.id}",interval);vm.repo.message("订阅信息已保存")}}
+        }
+        MainButton("保存修改",state.phase in listOf(VpnPhase.STOPPED,VpnPhase.FAILED)){vm.run{if(source.isNotBlank())require(java.net.URL(source).protocol=="https");require(interval.toLongOrNull()?.let{it>=15}==true){"更新间隔至少为15分钟"};vm.repo.saveProfile(name,p!!.yaml,p.id,source,userAgent=userAgent);vm.repo.saveDraft("profile-interval.${p.id}",interval);vm.repo.message("订阅信息已保存")}}
     }
 }
 
@@ -188,9 +244,11 @@ import org.json.JSONObject
                 MainButton(if(s.phase==VpnPhase.RUNNING)"停止 VPN" else "启动 VPN",s.selected!=null&&s.phase !in listOf(VpnPhase.STARTING,VpnPhase.STOPPING),if(s.phase==VpnPhase.RUNNING)stop else start)
             }
         }
+        SectionHeading("路由设置")
         if (LocalPlainSubpage.current) PlainSettingGroup { RouteFields() } else RouteFields()
         Info("保存后需重新启动 VPN。关闭 IPv6 接管时系统阻断本 VPN 的 IPv6。开启系统阻断时，排除的网段可能无法访问。")
-        MainButton("保存 VPN 设置"){vm.run{require(mtu.toInt() in 1280..9000);cn.nascp.clash.vpn.Routes.included(excludes.lines());vm.repo.saveDraft("vpn-options",JSONObject().put("mtu",mtu.toInt()).put("ipv6",ipv6).put("bypassLan",lan).put("exclude",excludes).toString());vm.repo.message("已保存，重新启动VPN生效")}}
+        MainButton("保存 VPN 设置"){vm.run{require(mtu.toIntOrNull() in 1280..9000){"请输入1280–9000之间的整数"};cn.nascp.clash.vpn.Routes.included(excludes.lines());vm.repo.saveDraft("vpn-options",JSONObject().put("mtu",mtu.toInt()).put("ipv6",ipv6).put("bypassLan",lan).put("exclude",excludes).toString());vm.repo.message("已保存，重新启动VPN生效")}}
+        SectionHeading("相关设置")
         if (LocalPlainSubpage.current) PlainGroup {
             Entry("分应用代理", icon = Icons.Outlined.Apps) { go("apps") }; PlainDivider()
             Entry("系统 VPN 设置", icon = Icons.Outlined.Shield) { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)) }
@@ -210,13 +268,14 @@ import org.json.JSONObject
         }
     }
     val busy by vm.busy.collectAsState()
-    var testUrl by rememberSaveable{mutableStateOf(vm.repo.draft("test-url").ifBlank{"https://www.gstatic.com/generate_204"})}
-    var timeout by rememberSaveable{mutableStateOf(vm.repo.draft("test-timeout").ifBlank{"5000"})}
     Page {
-        Panel{UiText("Mihomo v1.19.30",style=MaterialTheme.typography.titleLarge);UiText("${s.phase} · arm64-v8a");UiText("内核随应用版本交付")}
-        MainButton("校验当前配置",s.selected!=null){vm.run{vm.repo.validate(s.selected!!.yaml,s.selectedId);vm.repo.message("校验通过")}}
-        MainButton("重启并应用配置",s.phase==VpnPhase.RUNNING){vm.run{stop();kotlinx.coroutines.withTimeout(15000){while(vm.repo.state.value.phase!=VpnPhase.STOPPED)kotlinx.coroutines.delay(100)};start()}}
-        Info("重启会短暂断开现有连接。系统始终开启VPN时请通过系统设置管理。")
+        CoreStatusPanel(s, !busy,
+            onValidate = { vm.run { vm.repo.validate(s.selected!!.yaml,s.selectedId);vm.repo.message("校验通过") } },
+            onRestart = { vm.run { stop();kotlinx.coroutines.withTimeout(15000){while(vm.repo.state.value.phase!=VpnPhase.STOPPED)kotlinx.coroutines.delay(100)};start() } })
+        if(s.phase==VpnPhase.RUNNING && (s.controllerError || s.proxyError || s.connectionsError))Panel {
+            Info("VPN 已建立，控制接口异常")
+            MainButton("重试"){vm.repo.retryRuntime()}
+        }
         RuntimeLogLevelSetting(level,s.phase==VpnPhase.RUNNING,loadingLevel,!busy) { value ->
             vm.run {
                 check(vm.repo.state.value.phase==VpnPhase.RUNNING && vm.repo.state.value.activeId==s.activeId){"请先启动VPN"}
@@ -224,17 +283,42 @@ import org.json.JSONObject
                 level=value
             }
         }
-        if (LocalPlainSubpage.current) PlainSettingGroup {
-            Field("测速 HTTPS 地址",testUrl){testUrl=it}
-            PlainDivider()
-            Field("测速超时（1000–15000 ms）",timeout){timeout=it}
-        } else {
-            Field("测速 HTTPS 地址",testUrl){testUrl=it};Field("测速超时（1000–15000 ms）",timeout){timeout=it}
+        NavigationGroup("维护工具",listOf("speed-test","geo-status","diagnostics"),go)
+    }
+}
+
+@Composable fun SpeedTestSettingsPage(vm:MainViewModel) {
+    val savedUrl=remember { SpeedTestSettings.effectiveUrl(vm.repo.draft("test-url")) }
+    var preset by rememberSaveable { mutableStateOf(SpeedTestSettings.preset(savedUrl)) }
+    var customUrl by rememberSaveable { mutableStateOf(if(preset=="custom") savedUrl else "") }
+    var timeout by rememberSaveable { mutableStateOf(vm.repo.draft("test-timeout").ifBlank{"5000"}) }
+    val testUrl=when(preset) {
+        "cloudflare" -> SpeedTestSettings.CLOUDFLARE
+        "gstatic" -> SpeedTestSettings.GSTATIC
+        else -> customUrl
+    }
+    val busy by vm.busy.collectAsState()
+    Page {
+        Info("作用于本机节点测速，保存后下次测速使用。")
+        SectionHeading("测速参数")
+        Panel {
+            SettingChoiceEntry("测速地址", listOf("cloudflare" to "Cloudflare（HTTP）",
+                "gstatic" to "Google gstatic（HTTPS）", "custom" to "自定义"), preset) { preset=it }
+            if(preset=="custom") {
+                AppTextField(customUrl,{customUrl=it},Modifier.fillMaxWidth(),
+                    label={UiText("自定义测速地址")},singleLine=true)
+            } else UiText(testUrl,style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        MainButton("保存测速参数"){vm.run{require(java.net.URL(testUrl).protocol=="https");require(timeout.toInt() in 1000..15000);vm.repo.saveDraft("test-url",testUrl);vm.repo.saveDraft("test-timeout",timeout);vm.repo.message("测速参数已保存")}}
-        if (LocalPlainSubpage.current) PlainGroup {
-            Entry("GEO 数据", icon = settingsScreenIcon("geo")) { go("geo") }; PlainDivider()
-            Entry("诊断与导出", icon = settingsScreenIcon("diagnostics")) { go("diagnostics") }
-        } else Panel{Entry("GEO 数据"){go("geo")};Entry("诊断与导出"){go("diagnostics")}}
+        Field("测速超时（1000–15000 ms）",timeout){timeout=it}
+        MainButton("保存测速参数",!busy){vm.run{
+            val url=SpeedTestSettings.validatedUrl(testUrl)
+            val millis=timeout.trim().toIntOrNull()
+            require(millis!=null && millis in 1000..15000){"测速超时需为 1000–15000 ms"}
+            vm.repo.saveDraft("test-url",url)
+            vm.repo.saveDraft("test-timeout",millis.toString())
+            if(preset=="custom")customUrl=url
+            vm.repo.message("测速参数已保存")
+        }}
     }
 }

@@ -71,11 +71,25 @@ class ProxyManualFixtureTest {
                         .writeText(command("dumpsys gfxinfo ${context.packageName}"))
                 }
             } else {
-                withTimeout(900000) { while (!release.exists()) delay(250) }
+                // uiautomator cannot attach while instrumentation owns UiAutomation.
+                // Export a fresh tree on request for external adb-driven UI checks.
+                val dumpRequest = File(context.filesDir, "proxy-qa-dump")
+                val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+                withTimeout(900000) {
+                    while (!release.exists()) {
+                        if (dumpRequest.exists()) {
+                            device.dumpWindowHierarchy(File(context.getExternalFilesDir(null), "proxy-qa-ui.xml"))
+                            dumpRequest.delete()
+                        }
+                        delay(250)
+                    }
+                }
             }
         } finally {
-            context.startService(Intent(context, ClashVpnService::class.java).setAction(ClashVpnService.STOP))
-            withTimeout(15000) { while (repo.state.value.phase != VpnPhase.STOPPED) delay(100) }
+            if (repo.state.value.phase != VpnPhase.STOPPED) {
+                context.startService(Intent(context, ClashVpnService::class.java).setAction(ClashVpnService.STOP))
+                withTimeout(15000) { while (repo.state.value.phase != VpnPhase.STOPPED) delay(100) }
+            }
             repo.restoreBackup(backup); server.shutdown(); scenario.close()
         }
     }

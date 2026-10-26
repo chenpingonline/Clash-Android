@@ -2,7 +2,11 @@
 package cn.nascp.clash.ui
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.SeekableTransitionState
+import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.animation.core.tween
@@ -10,8 +14,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.testTag
@@ -40,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.nascp.clash.update.AppUpdateViewModel
 import cn.nascp.clash.MainViewModel
 import cn.nascp.clash.data.AppState
 import cn.nascp.clash.data.VpnPhase
@@ -48,6 +52,12 @@ import java.net.URLEncoder
 
 // Scroll content extends behind the floating dock; only its trailing space clears it.
 internal val LocalDockClearance = staticCompositionLocalOf { 0.dp }
+
+// Keep the panel's outline and backdrop until the final part of its travel.
+private fun pageSeparation(displacement: Float): Float {
+    val fraction = (displacement / 0.18f).coerceIn(0f, 1f)
+    return fraction * fraction * (3f - 2f * fraction)
+}
 
 private val tabs = listOf("home", "proxies", "profiles", "activity", "settings")
 private val labels = listOf("首页", "代理", "配置", "活动", "设置")
@@ -62,6 +72,11 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
     val messageKind=state.messageKind
     var stack by rememberSaveable { mutableStateOf(listOf("home")) }
     val route = stack.last()
+    val updates: AppUpdateViewModel = viewModel()
+    // Use the committed route, so recomposition and cancelled back gestures do not repeat checks.
+    LaunchedEffect(route) {
+        if (route == "about") updates.check(automatic = true)
+    }
     val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     DisposableEffect(route,lifecycle,vm.repo) {
         fun updateVisibility() {
@@ -73,14 +88,59 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
         lifecycle.addObserver(observer);updateVisibility()
         onDispose { lifecycle.removeObserver(observer);vm.repo.homeVisible(false);vm.repo.foregroundVisible(false) }
     }
-    val go: (String) -> Unit = { if (stack.last() != it) stack = stack + it }
-    val back: () -> Unit = { if (stack.size > 1) stack = stack.dropLast(1) }
-    BackHandler(stack.size > 1) { back() }
-    val proxyContent = remember(vm) {
-        movableContentOf<AppState, ProxyUiState, ProxyCatalog> { pageState, controller, catalog ->
-            key(pageState.selected?.id, pageState.activeId) {
-                ProxyList(pageState, vm, { destination -> if (stack.last() == "proxies") go(destination) }, controller, catalog)
+    val focusManager=androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard=androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val savedPages=androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    val go: (String) -> Unit = { destination ->
+        val target=if(destination=="group")"group-edit" else destination
+        if(stack.last()!=target){focusManager.clearFocus();keyboard?.hide();stack=stack+target}
+    }
+    val back: () -> Unit = {
+        focusManager.clearFocus();keyboard?.hide()
+        if (stack.size > 1) stack = stack.dropLast(1)
+    }
+    val navigationState = remember { SeekableTransitionState(stack) }
+    val navigation = rememberTransition(navigationState, label = "navigation")
+    var predictiveBack by remember { mutableStateOf(false) }
+    val tabEasing = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
+    val enterEasing = CubicBezierEasing(0.18f, 0.72f, 0.2f, 1f)
+    val returnEasing = CubicBezierEasing(0.2f, 0.5f, 0.2f, 1f)
+    LaunchedEffect(stack, predictiveBack) {
+        if (!predictiveBack) {
+            val remaining = when {
+                navigationState.targetState == stack -> 1f - navigationState.fraction
+                navigationState.currentState == stack -> navigationState.fraction
+                else -> 1f
             }
+            val tabSwitch = navigationState.currentState.last() in tabs && stack.last() in tabs
+            val cancelled = navigationState.currentState == stack && navigationState.targetState != stack
+            val returning = stack.size < maxOf(navigationState.currentState.size, navigationState.targetState.size)
+            val duration = when {
+                tabSwitch -> 260
+                cancelled -> 260
+                returning -> 440
+                else -> 560
+            }
+            // Preserve a short settling phase even when a gesture ends close to an edge.
+            val minimum = if (!tabSwitch && remaining > 0.001f) 120 else 1
+            navigationState.animateTo(stack, tween((duration * remaining).toInt().coerceAtLeast(minimum),
+                easing = if (tabSwitch) tabEasing else if (returning || cancelled) returnEasing else enterEasing))
+        }
+    }
+    PredictiveBackHandler(enabled = stack.size > 1) { progress ->
+        val origin = stack
+        val parent = origin.dropLast(1)
+        predictiveBack = true
+        try {
+            // Seek the same transition used by button Back; release continues from here.
+            navigationState.snapTo(origin)
+            progress.collect { event ->
+                if (stack == origin) navigationState.seekTo(event.progress, parent)
+            }
+            if (stack == origin) back()
+        } finally {
+            // Cancellation leaves the stack intact and animates back to the origin.
+            predictiveBack = false
         }
     }
     ClashTheme(state.theme,state.language,state.fontScale,state.fontWeight) {
@@ -92,20 +152,63 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
             modifier = Modifier.fillMaxSize())
         if (LocalPearlGlass.current) Box(Modifier.fillMaxSize().background(
             androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF7F9FE), Color(0xFFEEF5FF), Color(0xFFF4F0FC), Color(0xFFF8FAFD)))))
+        val layoutDirection = LocalLayoutDirection.current
+        val sharedDock = navigation.currentState.last() in tabs && navigation.targetState.last() in tabs
+        navigation.AnimatedContent(modifier = Modifier.fillMaxSize().clipToBounds(),
+            contentKey = { it.last() },
+            transitionSpec = {
+                val from = initialState.last(); val to = targetState.last()
+                val tabSwitch = from in tabs && to in tabs
+                val direction = (if (layoutDirection == LayoutDirection.Rtl) -1 else 1)
+                val motion = tween<androidx.compose.ui.unit.IntOffset>(360, easing = LinearEasing)
+                if (tabSwitch) {
+                    val tabDirection = (if (tabs.indexOf(to) > tabs.indexOf(from)) 1 else -1) * direction
+                    (slideInHorizontally(motion) { tabDirection * it } togetherWith
+                        slideOutHorizontally(motion) { -tabDirection * it }).using(null)
+                } else if (targetState.size > initialState.size) {
+                    (slideInHorizontally(motion) { direction * it } togetherWith
+                        slideOutHorizontally(motion) { -direction * it / 4 })
+                        .apply { targetContentZIndex = targetState.size.toFloat() }.using(null)
+                } else {
+                    (slideInHorizontally(motion) { -direction * it / 4 } togetherWith
+                        slideOutHorizontally(motion) { direction * it })
+                        .apply { targetContentZIndex = targetState.size.toFloat() }.using(null)
+                }
+            }) { visibleStack ->
+        val route = visibleStack.last()
+        val navigate: (String) -> Unit = { if (stack == visibleStack && !predictiveBack) go(it) }
+        val navigateBack: () -> Unit = { if (stack == visibleStack && !predictiveBack) back() }
+        val displacement by navigation.animateFloat(
+            transitionSpec = { tween(360, easing = LinearEasing) }, label = "pageExposure:$route"
+        ) { if (it == visibleStack) 0f else 1f }
+        val foreground = visibleStack.size > minOf(navigation.currentState.size, navigation.targetState.size)
+        Box(Modifier.fillMaxSize()
+            .then(if (visibleStack != stack) Modifier.clearAndSetSemantics {} else Modifier)
+            .graphicsLayer {
+            if (foreground) {
+                val separation = pageSeparation(displacement)
+                shape = RoundedCornerShape((40f * separation).dp)
+                clip = true
+                shadowElevation = 6.dp.toPx() * separation
+            }
+        }.background(MaterialTheme.colorScheme.background)) {
         Scaffold(containerColor = if (LocalSageGlass.current || LocalPearlGlass.current) Color.Transparent else MaterialTheme.colorScheme.background,
             topBar = {
                 TopAppBar(modifier = Modifier.testTag("route:$route"), title = { UiText(if (route in tabs) labels[tabs.indexOf(route)].let { if (route == "home") "Clash" else it } else screens[route]?.title ?: "详情") },
-                    navigationIcon = { if (stack.size > 1) IconButton(onClick = back) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, tr("返回")) } },
+                    navigationIcon = { if (visibleStack.size > 1) IconButton(onClick = navigateBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, tr("返回")) } },
                     actions = {
-                        if (route == "proxies") ProxyToolbar(state, vm, proxyUi, go, proxyCatalog)
-                        if (route == "profiles") IconButton(onClick = { go("import") }) { Icon(Icons.Outlined.Add, "添加配置") }
-                        if (route == "home") IconButton(onClick = { go("appearance") }) { Icon(Icons.Outlined.Palette, tr("外观与主题")) }
+                        if (route == "proxies") ProxyToolbar(state, vm, proxyUi, navigate, proxyCatalog)
+                        if (route == "profiles") ProfileUpdateToolbar(state,vm)
+                        if (route == "profiles") IconButton(onClick = { navigate("import") }) { Icon(Icons.Outlined.Add, tr("添加配置")) }
+                        if (route == "home") IconButton(onClick = { navigate("appearance") }) { Icon(Icons.Outlined.Palette, tr("外观与主题")) }
                     }, colors = TopAppBarDefaults.topAppBarColors(containerColor = if (LocalSageGlass.current || LocalPearlGlass.current) Color.Transparent else MaterialTheme.colorScheme.background))
             }, bottomBar = {
-                AnimatedVisibility(route in tabs,
-                    enter = fadeIn(tween(180)) + expandVertically(tween(220), expandFrom = Alignment.Bottom),
-                    exit = fadeOut(tween(100)) + shrinkVertically(tween(220), shrinkTowards = Alignment.Bottom)) {
-                    BottomDock(if (route in tabs) route else stack.first(), backdrop = if (LocalPlain.current || LocalPearlGlass.current) dockBackdrop else null) { stack = listOf(it) }
+                if (route in tabs) {
+                    Box(if (sharedDock) Modifier.graphicsLayer { alpha = 0f }.clearAndSetSemantics {} else Modifier) {
+                        BottomDock(route, backdrop = if (LocalPlain.current || LocalPearlGlass.current) dockBackdrop else null) {
+                            if (stack == visibleStack && !predictiveBack) stack = listOf(it)
+                        }
+                    }
                 }
             }
         ) { padding ->
@@ -116,70 +219,64 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
                 end = padding.calculateEndPadding(androidx.compose.ui.platform.LocalLayoutDirection.current)
             ) else padding
             CompositionLocalProvider(LocalDockClearance provides (if (floatingDock) padding.calculateBottomPadding() else 0.dp), LocalOperationBusy provides busy) {
-            Column(Modifier.padding(layoutPadding).fillMaxSize().imePadding()
+            Box(Modifier.padding(layoutPadding).fillMaxSize().imePadding()
                 .then(if (floatingDock) Modifier.dockBackdropSource(dockBackdrop, if (LocalPlain.current) MaterialTheme.colorScheme.background else Color.Transparent,
                     fadeColor = if (LocalPlain.current) MaterialTheme.colorScheme.background else null) else Modifier)) {
-                AnimatedVisibility(busy || state.phase in listOf(VpnPhase.STARTING, VpnPhase.STOPPING),
+                Column(Modifier.fillMaxSize()) {
+                AnimatedVisibility(route != "profiles" && (busy || state.phase in listOf(VpnPhase.STARTING, VpnPhase.STOPPING)),
                     enter = fadeIn(tween(120)) + expandVertically(tween(160)),
                     exit = fadeOut(tween(100)) + shrinkVertically(tween(160))) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
-                AnimatedVisibility(state.error.isNotBlank(), enter=fadeIn(tween(120))+expandVertically(tween(160)), exit=fadeOut(tween(100))+shrinkVertically(tween(160))) {
-                    OperationNotice(state.error,state.messageKind) { vm.repo.clearMessage(messageId) }
-                }
-                val layoutDirection = LocalLayoutDirection.current
-                val navigation = updateTransition(stack, label = "navigation")
-                val proxyOnStage = navigation.currentState.last() == "proxies" || navigation.targetState.last() == "proxies"
-                Box(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
-                // Keep just the lazy viewport warm, not all proxy cards. Movable content
-                // reuses its composition, measured nodes and scroll position on re-entry.
-                if (!proxyOnStage && state.phase == VpnPhase.RUNNING && proxyCatalog.groups.isNotEmpty()) {
-                    Box(Modifier.matchParentSize().graphicsLayer { translationX = size.width + 1f; alpha = 0f }
-                        .clearAndSetSemantics {}) { proxyContent(state, proxyUi, proxyCatalog) }
-                }
-                navigation.AnimatedContent(modifier = Modifier.fillMaxSize(),
-                    contentKey = { it.last() },
-                    transitionSpec = {
-                        val from = initialState.last(); val to = targetState.last()
-                        val tabSwitch = from in tabs && to in tabs
-                        val direction = (if (tabSwitch) {
-                            if (tabs.indexOf(to) > tabs.indexOf(from)) 1 else -1
-                        } else if (targetState.size >= initialState.size) 1 else -1) *
-                            (if (layoutDirection == LayoutDirection.Rtl) -1 else 1)
-                        if (tabSwitch) {
-                            // Both pages travel together, like adjacent sheets; no cross-fade.
-                            val motion = tween<androidx.compose.ui.unit.IntOffset>(260,
-                                easing = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f))
-                            (slideInHorizontally(motion) { direction * it } togetherWith
-                                slideOutHorizontally(motion) { -direction * it }).using(null)
-                        } else {
-                            ((fadeIn(tween(180, delayMillis = 40)) +
-                                slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { direction * it / 10 }) togetherWith
-                                (fadeOut(tween(110)) + slideOutHorizontally(tween(220, easing = FastOutSlowInEasing)) { -direction * it / 16 }))
-                                .using(null)
-                        }
-                    }) { visibleStack ->
-                    val visibleRoute = visibleStack.last()
-                    // Exiting content stays composed briefly; ignore its late navigation taps.
-                    val navigate: (String) -> Unit = { if (stack == visibleStack) go(it) }
-                    val navigateBack: () -> Unit = { if (stack == visibleStack) back() }
+                val visibleRoute = route
+                    val scopeKey=if(visibleRoute in profileScopedRoutes)state.selectedId else "app"
+                    val entityKey=when(visibleRoute) {
+                        "rule-provider"->vm.repo.draft("rule-provider.selected.${state.selectedId}")
+                        "remote-editor","remote-workspace"->vm.repo.draft("remote-selected")
+                        else->""
+                    }
+                    savedPages.SaveableStateProvider("${state.editorEpoch}:$visibleRoute:$scopeKey:$entityKey") {
                     when (visibleRoute) {
                         "home" -> Home(state, onStart, onStop, navigate, vm)
-                        "proxies" -> proxyContent(state, proxyUi, proxyCatalog)
+                        "proxies" -> {
+                            // Keep composition inside Scaffold: moving a precomposed lazy list
+                            // across its subcomposition can corrupt Compose's slot table.
+                            ProxyList(state, vm, navigate, proxyUi, proxyCatalog)
+                        }
                         "profiles" -> ProfileList(state, vm, navigate)
                         "activity" -> ActivityPage(state, vm, navigate)
                         "settings" -> Settings(navigate)
                         else -> Secondary(visibleRoute, state, vm, navigate, navigateBack, onStart, onStop)
                     }
+                    }
                 }
+                AnimatedVisibility(state.error.isNotBlank() && visibleStack==stack,
+                    modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=if(floatingDock)padding.calculateBottomPadding()+8.dp else 8.dp),
+                    enter=fadeIn(tween(150))+slideInVertically(tween(180)){it/3},
+                    exit=fadeOut(tween(120))+slideOutVertically(tween(150)){it/3}) {
+                    OperationNotice(state.error,state.messageKind) { vm.repo.clearMessage(messageId) }
                 }
             }
         }
         }
+        if (!foreground && navigation.currentState != navigation.targetState &&
+            (navigation.currentState.size != navigation.targetState.size)) {
+            Box(Modifier.matchParentSize().graphicsLayer { alpha = pageSeparation(displacement) * 0.20f }
+                .background(Color.Black))
         }
+        }
+        }
+        if (sharedDock) Box(Modifier.align(Alignment.BottomCenter)) {
+            BottomDock(stack.last(), backdrop = if (LocalPlain.current || LocalPearlGlass.current) dockBackdrop else null) {
+                if (!predictiveBack) stack = listOf(it)
+            }
+        }
+        }
+        val accessibility=androidx.compose.ui.platform.LocalAccessibilityManager.current
         LaunchedEffect(messageId,messageText) {
-            if(messageText.isNotBlank() && messageKind == cn.nascp.clash.data.MessageKind.INFO) {
-                kotlinx.coroutines.delay(5000)
+            if(messageText.isNotBlank()) {
+                val duration=if(messageKind==cn.nascp.clash.data.MessageKind.INFO)4000L else 8000L
+                kotlinx.coroutines.delay(accessibility?.calculateRecommendedTimeoutMillis(duration,containsIcons=true,containsText=true,containsControls=true) ?: duration)
                 vm.repo.clearMessage(messageId)
             }
         }
@@ -187,7 +284,7 @@ private val labels = listOf("首页", "代理", "配置", "活动", "设置")
 }
 
 @Composable fun Page(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 8.dp, bottom = 24.dp + LocalDockClearance.current), verticalArrangement = Arrangement.spacedBy(if (LocalPlainCompact.current) 10.dp else if (LocalPlain.current) 12.dp else 16.dp), content = content)
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 8.dp, bottom = 24.dp + LocalDockClearance.current), verticalArrangement = Arrangement.spacedBy(if (LocalPlain.current) 12.dp else 16.dp), content = content)
 }
 
 @Composable private fun Home(s: AppState, start: () -> Unit, stop: () -> Unit, go: (String) -> Unit, vm: MainViewModel) {
@@ -305,7 +402,6 @@ private fun vpnStatus(phase: VpnPhase): String = when (phase) {
                 Button(onClick = { vm.run { if (profile.id != s.selectedId) vm.repo.selectProfile(profile.id); go("profile") } }) { UiText("管理") }
             }
         } }
-        GlobalExtensions(go)
     }
 }
 
@@ -315,12 +411,17 @@ private fun vpnStatus(phase: VpnPhase): String = when (phase) {
     var query by rememberSaveable { mutableStateOf("") }
     var paused by rememberSaveable { mutableStateOf(false) }
     var logSnapshot by remember { mutableStateOf(emptyList<String>()) }
+    val applications=rememberConnectionApplications(s.connections)
+    val filteredConnections=remember(s.connections,query,applications) {
+        (0 until s.connections.length()).map(s.connections::getJSONObject).filter { it.toString().contains(query,true) || applications[connectionUid(it)]?.searchText?.contains(query,true)==true }
+    }
     val context=LocalContext.current
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")){uri->if(uri!=null)vm.run{val content=(if(paused)logSnapshot else s.logs).joinToString("\n");withContext(Dispatchers.IO){context.contentResolver.openOutputStream(uri)?.use{it.write(content.toByteArray())}?:error("无法导出日志")}}}
     var closeAll by remember{mutableStateOf(false)}
     Page(sectionMotion(tab)) {
         Choices(listOf("connections" to "连接", "logs" to "日志"), tab) { tab = it }
-        AppTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = { UiText("搜索域名、IP或日志") }, singleLine = true)
+        Entry("运行规则",icon=settingsScreenIcon("rules")){go("rules")}
+        AppTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = { UiText(if(tab=="logs")"搜索日志" else "搜索应用、包名、域名或 IP") }, singleLine = true)
         if (s.phase != VpnPhase.RUNNING) Info("VPN未启动，暂无实时活动。")
         if (tab == "logs") {
             Info("内核日志已隐藏 URL 与常见凭据字段；导出前仍请检查内容。")
@@ -330,14 +431,14 @@ private fun vpnStatus(phase: VpnPhase): String = when (phase) {
             UiText("活动连接 (${s.connections.length()})", style = MaterialTheme.typography.titleMedium)
             TextButton(onClick={closeAll=true}){UiText("关闭筛选结果中的连接")}
             if(closeAll)InlineConfirmation("关闭筛选连接？","仅关闭当前列表中与搜索内容匹配的连接；新连接不包含在此次操作。","关闭",onDismiss={closeAll=false}) {
-                val ids=(0 until s.connections.length()).map(s.connections::getJSONObject).filter{it.toString().contains(query,true)}.map{it.getString("id")}
+                val ids=filteredConnections.map{it.getString("id")}
                 closeAll=false;vm.run{ids.forEach{vm.repo.api("/connections/${encode(it)}","DELETE")}}
             }
             Panel {
                 if (s.connections.length() == 0) UiText("暂无活动连接", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                LazyColumn(Modifier.fillMaxWidth().heightIn(min=80.dp,max=480.dp)){items((0 until s.connections.length()).map(s.connections::getJSONObject).filter { it.toString().contains(query,true) },key={it.optString("id")}) { connection ->
+                LazyColumn(Modifier.fillMaxWidth().heightIn(min=80.dp,max=480.dp)){items(filteredConnections,key={it.optString("id")}) { connection ->
                     val m = connection.optJSONObject("metadata") ?: JSONObject()
-                    Entry(m.optString("host").ifBlank { m.optString("destinationIP") }, "${m.optString("network")} · ↓ ${bytes(connection.optLong("download"))}", Icons.Outlined.Public) {
+                    ActivityConnectionRow(m.optString("host").ifBlank { m.optString("destinationIP") }, "${m.optString("network").uppercase()} · ↓ ${bytes(connection.optLong("download"))} · ↑ ${bytes(connection.optLong("upload"))}", applications[connectionUid(connection)]) {
                         vm.repo.saveDraft("connection", connection.toString()); go("connection")
                     }
                 }}
@@ -346,25 +447,6 @@ private fun vpnStatus(phase: VpnPhase): String = when (phase) {
     }
 }
 
-@Composable private fun Settings(go: (String) -> Unit) {
-    if (LocalPlain.current) { PlainSettings(go); return }
-    Page {
-        UiText("基础设置", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Panel {
-            Entry("VPN 与分应用", "授权、接管与应用分流", Icons.Outlined.Shield) { go("vpn") }
-            Entry("网络与端口", "本机监听与局域网访问", settingsScreenIcon("network")) { go("network") }
-            Entry("DNS 与解析", "解析服务器、Fake IP、Hosts", Icons.Outlined.Dns) { go("dns") }
-            Entry("路由规则", "规则和规则集", Icons.AutoMirrored.Outlined.FormatListBulleted) { go("rules") }
-            Entry("内核与 GEO", "版本、运行状态与数据", settingsScreenIcon("core")) { go("core") }
-        }
-        UiText("其他", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Panel {
-            Entry("自动化与后台运行", "更新计划与系统限制", Icons.Outlined.Schedule) { go("automation") }
-            Entry("外观与语言", "主题与显示设置", Icons.Outlined.Palette) { go("appearance") }
-            Entry("备份与恢复", "导出当前配置", Icons.Outlined.Backup) { go("backup") }
-            Entry("远程控制器", "独立实例管理与控制", settingsScreenIcon("remote")) { go("remote") }
-            Entry("关于与更新", "开发版本与诊断", Icons.Outlined.Info) { go("about") }
-        }
-    }
-}
+@Composable private fun Settings(go: (String) -> Unit) = SettingsHome(go)
+
 fun encode(text: String) = URLEncoder.encode(text, "UTF-8").replace("+", "%20")

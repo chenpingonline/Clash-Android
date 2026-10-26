@@ -22,6 +22,15 @@ class PlainThemeTest {
         android.os.ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("cp ${file.absolutePath} /data/local/tmp/plain-$name.png")).use { it.readBytes() }
     }
 
+    private fun selectTheme(label:String) {
+        ui.onNodeWithText("主题模式").performScrollTo().performClick()
+        ui.onNodeWithText(label).performClick();ui.waitForIdle()
+    }
+    private fun assertTheme(label:String) {
+        ui.onNodeWithText("主题模式").performScrollTo().performClick()
+        ui.onNode(isSelected() and (hasText(label) or hasAnyDescendant(hasText(label)))).assertExists()
+        ui.onNodeWithText("取消").performClick()
+    }
     @Test fun compactPagesAndRuntimeActions() {
         val repo = ClashRepository.get(ui.activity)
         runBlocking { repo.initialized() }
@@ -36,7 +45,7 @@ class PlainThemeTest {
             ui.onNodeWithText("VPN 设置").performClick()
             ui.onNodeWithText("接管 IPv6").assertExists()
             ui.onNodeWithContentDescription("返回").performClick()
-            ui.onNodeWithText("路由规则").performScrollTo().performClick()
+            ui.openSettingsPage("rules")
             ui.onNodeWithContentDescription("返回").performClick()
             ui.onAllNodesWithText("首页").onLast().performClick()
             val automation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
@@ -63,15 +72,15 @@ class PlainThemeTest {
             repo.language("en"); repo.fontScale(1.5f)
             ui.waitForIdle()
             val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
-            ui.onNodeWithText("Disconnected").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            ui.onAllNodesWithText("Disconnected").onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertEquals("Connection status should fit without breaking the word", 1, layouts.single().lineCount)
             capture("home-en-large")
             ui.onAllNodesWithText("Settings").onLast().performClick()
-            ui.onNodeWithText("About & updates").performScrollTo().assertExists()
+            ui.onNodeWithText("About").performScrollTo().assertExists()
             capture("settings-en-large")
             ui.onNodeWithText("VPN settings").performScrollTo().performClick()
             val statusLayouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
-            ui.onNodeWithText("Disconnected").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(statusLayouts) }
+            ui.onAllNodesWithText("Disconnected").onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(statusLayouts) }
             assertEquals("VPN status must not break within a word at large font", 1, statusLayouts.single().lineCount)
             capture("vpn-en-large")
         } finally {
@@ -111,14 +120,14 @@ class PlainThemeTest {
                 capture("dark-$tab")
             }
             ui.onNodeWithText("外观与语言").performClick()
-            ui.onNodeWithText("深色").assertIsSelected()
+            assertTheme("深色")
             ui.onNodeWithText("素白").assertDoesNotExist()
             capture("dark-appearance")
-            ui.onNodeWithText("跟随系统").performClick()
+            selectTheme("跟随系统")
             shell("cmd uimode night yes")
             ui.waitForIdle()
             assertBlackBackground()
-            ui.onNodeWithText("跟随系统").assertIsSelected()
+            assertTheme("跟随系统")
             capture("system-dark")
             shell("cmd uimode night no")
             ui.waitForIdle()
@@ -128,7 +137,7 @@ class PlainThemeTest {
                 image.recycle()
                 light
             }
-            ui.onNodeWithText("跟随系统").assertIsSelected()
+            assertTheme("跟随系统")
             capture("system-light")
         } finally {
             shell("cmd uimode night ${nightMode.takeIf { it in listOf("yes", "no", "auto") } ?: "no"}")
@@ -151,26 +160,26 @@ class PlainThemeTest {
             assertEquals("Explicit system theme must be preserved", "system", repo.state.value.theme)
             ui.waitForIdle()
             ui.onNodeWithContentDescription("外观与主题").performClick()
-            ui.onNodeWithText("浅色").performClick()
+            selectTheme("浅色")
             ui.waitForIdle()
             assertEquals("light", repo.state.value.theme)
             assertEquals("light", ui.activity.getSharedPreferences("preferences", 0).getString("theme", null))
             ui.activityRule.scenario.recreate()
             ui.waitForIdle()
-            ui.onNodeWithText("浅色").assertIsSelected()
+            assertTheme("浅色")
             val saved = repo.backup()
             repo.theme("dark")
             runBlocking { repo.restoreBackup(saved) }
             ui.waitForIdle()
             assertEquals("light", repo.state.value.theme)
-            ui.onNodeWithText("浅色").assertIsSelected()
-            ui.onNodeWithText("深色").performClick()
+            assertTheme("浅色")
+            selectTheme("深色")
             ui.waitForIdle()
             assertEquals("dark", repo.state.value.theme)
-            ui.onNodeWithText("浅色").performClick()
+            selectTheme("浅色")
             ui.waitForIdle()
             assertEquals("light", repo.state.value.theme)
-            ui.onNodeWithText("跟随系统").performClick()
+            selectTheme("跟随系统")
             ui.waitForIdle()
             assertEquals("system", repo.state.value.theme)
         } finally {

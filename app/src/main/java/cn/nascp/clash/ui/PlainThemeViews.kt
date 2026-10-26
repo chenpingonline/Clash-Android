@@ -41,8 +41,8 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
 }
 
 @Composable internal fun PlainIcon(icon: ImageVector, color: Color = iconColor(icon)) {
-    Box(Modifier.size(32.dp).background(color, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-        Icon(icon, null, Modifier.size(20.dp), tint = Color.White)
+    Box(Modifier.size(28.dp).background(color, RoundedCornerShape(9.dp)), contentAlignment = Alignment.Center) {
+        Icon(icon, null, Modifier.size(18.dp), tint = Color.White)
     }
 }
 
@@ -64,8 +64,8 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
 
 /** A single surface for a related list; no vertical gaps between its rows. */
 @Composable internal fun PlainGroup(content: @Composable ColumnScope.() -> Unit) {
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(horizontal = 14.dp), content = content)
+    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(horizontal = 16.dp), content = content)
     }
 }
 
@@ -99,7 +99,7 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
                         VpnPhase.FAILED -> "启动失败"
                         else -> "未连接"
                     }, style = MaterialTheme.typography.titleLarge)
-                    UiText(if (running) "VPN 已启动" else if (s.selected == null) "导入配置，然后启动 VPN" else s.selected!!.name,
+                    UiText(if (running && (s.controllerError || s.proxyError || s.connectionsError)) "VPN 已建立，控制接口异常" else if (running) "VPN 已启动" else if (s.selected == null) "导入配置，然后启动 VPN" else s.selected!!.name,
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (!expanded) ConnectionButton()
@@ -117,22 +117,22 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
             PlainDivider()
             PlainEntry("当前节点", node.takeIf { running && it.isNotBlank() } ?: tr(if (running) "选择节点" else "查看配置中的节点和分组"), Icons.AutoMirrored.Outlined.Send) { go("proxies") }
         }
-        UiText("常用功能", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        SectionHeading("常用功能")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Surface(Modifier.weight(1f), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
                 Row(Modifier.clickable { go("apps") }.heightIn(min = 60.dp).padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PlainIcon(Icons.Outlined.Apps)
                     UiText("分应用代理", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 }
             }
-            Surface(Modifier.weight(1f), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+            Surface(Modifier.weight(1f), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
                 Row(Modifier.clickable(enabled = running && !s.exitLoading) {
                     vm.repo.refreshExitLocation()
                 }.heightIn(min = 60.dp).padding(12.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PlainIcon(Icons.Outlined.Wifi, if (s.exitLocation!=null) PlainGreen else Color(0xFF929AA5))
-                    UiText(if (s.exitLoading) "测试中" else "网络检测", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
+                    UiText(if (s.exitLoading) "测试中" else "检查出口 IP", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
                         color = if (running) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -142,7 +142,7 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
 }
 
 @Composable private fun PlainRate(label: String, value: String, total:String, icon: ImageVector, color: Color, modifier: Modifier) {
-    Surface(modifier, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.heightIn(min = 84.dp).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(icon, null, Modifier.size(19.dp), tint = color)
@@ -154,42 +154,18 @@ private fun iconColor(icon: ImageVector): Color = when (icon) {
     }
 }
 
-@Composable internal fun PlainSettings(go: (String) -> Unit) {
-    Page {
-        UiText("网络", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        PlainGroup {
-            PlainEntry("VPN 设置", icon = Icons.Outlined.Shield) { go("vpn") }; PlainDivider()
-            PlainEntry("网络与端口", icon = settingsScreenIcon("network")) { go("network") }; PlainDivider()
-            PlainEntry("DNS 与解析", icon = Icons.Outlined.Dns) { go("dns") }
-        }
-        UiText("通用", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        PlainGroup {
-            PlainEntry("外观与语言", icon = Icons.Outlined.Palette) { go("appearance") }; PlainDivider()
-            PlainEntry("自动化与后台", icon = Icons.Outlined.Schedule) { go("automation") }; PlainDivider()
-            PlainEntry("备份与恢复", icon = settingsScreenIcon("backup")) { go("backup") }
-        }
-        PlainGroup {
-            PlainEntry("内核管理", icon = settingsScreenIcon("core")) { go("core") }; PlainDivider()
-            PlainEntry("关于与更新", icon = Icons.Outlined.Info) { go("about") }
-        }
-        UiText("高级", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        PlainGroup {
-            PlainEntry("路由规则", icon = settingsScreenIcon("rules")) { go("rules") }; PlainDivider()
-            PlainEntry("远程控制器", icon = settingsScreenIcon("remote")) { go("remote") }
-        }
-    }
-}
-
-
+@Composable internal fun PlainSettings(go: (String) -> Unit) = SettingsHome(go)
 
 @Composable internal fun PlainAppearance(s: AppState, vm: MainViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     Page {
+        SectionHeading("显示外观")
         Panel {
             SettingChoiceEntry("主题模式", listOf("system" to "跟随系统", "light" to "浅色", "dark" to "深色"), s.theme, vm.repo::theme)
             UiText("主题即时生效，保留当前配置与VPN连接。", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        SectionHeading("语言与字体")
         Panel {
             SettingChoiceEntry("语言", listOf("zh" to "简体中文", "en" to "English"), s.language, vm.repo::language)
             HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)

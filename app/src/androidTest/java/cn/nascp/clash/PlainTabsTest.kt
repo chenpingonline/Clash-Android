@@ -27,6 +27,7 @@ class PlainTabsTest {
         val backup = repo.backup()
         var route = ""
         try {
+            runBlocking { repo.restoreBackup(JSONObject(backup).put("profiles", JSONArray()).put("selected", "").toString()) }
             runBlocking { repo.saveProfile("Compact profile with a long readable name", ClashRepository.SAMPLE) }
             val first = repo.state.value.selectedId
             runBlocking { repo.saveProfile("Subscription fixture", ClashRepository.SAMPLE, source = "https://example.invalid/sub.yaml") }
@@ -36,12 +37,43 @@ class PlainTabsTest {
             }
             ui.onNodeWithTag("profile-select:$first").performScrollTo().performClick()
             ui.waitUntil(5000) { repo.state.value.selectedId == first }
-            ui.onNodeWithTag("profile-select:$first").assertIsNotEnabled()
-            ui.onNodeWithTag("profile-manage:$first").performClick()
+            ui.onNodeWithTag("profile-select:$first").assertIsSelected()
+            ui.onNodeWithTag("profile-manage:$first").performClick();ui.onNodeWithTag("profile-details:$first").performClick()
             ui.waitUntil(5000) { route == "profile" }
-            ui.onNodeWithTag("plain-profiles").performScrollToNode(hasText("HTTPS subscription · URL hidden"))
-            ui.onNodeWithText("Add profile").performScrollTo().performClick()
-            assertEquals("import", route)
+            ui.onNodeWithTag("plain-profiles").performScrollToNode(hasText("Subscription fixture"))
+            val second = repo.state.value.profiles.first { it.name == "Subscription fixture" }.id
+            ui.onNodeWithTag("profile-select:$second").assertIsNotSelected()
+            ui.onNodeWithTag("profile-manage:$second").performScrollTo().performClick();ui.onNodeWithTag("profile-details:$second").performClick()
+            ui.waitUntil(5000) { repo.state.value.selectedId == second }
+            assertEquals("profile", route)
+        } finally { runBlocking { repo.restoreBackup(backup) } }
+    }
+
+    @Test fun runningVpnDisablesSwitchingButKeepsActiveManagementAvailable() {
+        val vm = MainViewModel(app)
+        val repo = vm.repo
+        runBlocking { repo.initialized() }
+        val backup = repo.backup()
+        var route = ""
+        try {
+            runBlocking {
+                repo.restoreBackup(JSONObject(backup).put("profiles", JSONArray()).put("selected", "").toString())
+                repo.saveProfile("Other profile", ClashRepository.SAMPLE)
+                repo.saveProfile("Active profile", ClashRepository.SAMPLE)
+            }
+            val active = repo.state.value.selectedId
+            val other = repo.state.value.profiles.first { it.id != active }.id
+            ui.setContent {
+                ClashTheme("light", "en") { Surface {
+                    PlainProfileList(repo.state.value.copy(phase = VpnPhase.RUNNING, activeId = active), vm) { route = it }
+                } }
+            }
+            ui.onNodeWithTag("profile-select:$other").assertIsNotEnabled()
+            ui.onNodeWithTag("profile-select:$active").assertIsNotEnabled().assertIsSelected()
+            ui.onNodeWithTag("profile-manage:$other").performClick();ui.onNodeWithTag("profile-details:$other").assertIsNotEnabled();ui.onNodeWithText("Cancel").performClick()
+            ui.onNodeWithTag("profile-manage:$active").performClick();ui.onNodeWithTag("profile-details:$active").performClick()
+            ui.waitUntil(5000) { route == "profile" }
+            assertEquals(active, repo.state.value.selectedId)
         } finally { runBlocking { repo.restoreBackup(backup) } }
     }
 

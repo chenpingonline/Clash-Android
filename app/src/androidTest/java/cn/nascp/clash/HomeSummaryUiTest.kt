@@ -17,7 +17,7 @@ class HomeSummaryUiTest {
     @Test fun homeShowsLiveAndCumulativeTrafficWithExitCardAndNoFooter() {
         val vm=MainViewModel(app)
         val state=AppState(ready=true,phase=VpnPhase.RUNNING,up=1024,down=2048,totalUp=32L*1024*1024,totalDown=64L*1024*1024,
-            exitLocation=ExitLocation("203.0.113.8","新加坡","SG","Central","Singapore","Asia/Singapore","+08:00"))
+            exitLocation=ExitLocation("203.0.113.8","新加坡","SG","Central","Singapore","Asia/Singapore","+08:00",organization="Fixture ISP",asn=13335,asnOrganization="Fixture Network",source="fixture.example"))
         ui.setContent { ClashTheme("light") { Surface { PlainHome(state,{},{},{},vm) } } }
         ui.onNodeWithText("2.0 KB/s").assertIsDisplayed()
         ui.onNodeWithText("1.0 KB/s").assertIsDisplayed()
@@ -25,8 +25,21 @@ class HomeSummaryUiTest {
         ui.onNodeWithText("累计 32.0 MB").assertIsDisplayed()
         ui.onNodeWithTag("home-exit-ip").assertTextEquals("203.0.113.8")
         ui.onNodeWithText("新加坡").assertExists()
+        ui.onNodeWithText("Fixture ISP").assertExists()
+        ui.onNodeWithText("AS13335").assertExists()
+        ui.onNodeWithText("Fixture Network").assertExists()
+        ui.onNodeWithText("fixture.example").assertExists()
         ui.onNodeWithText("Asia/Singapore · +08:00").assertExists()
         ui.onNodeWithText("本机真实内核。VPN运行与外网连通性分别显示。").assertDoesNotExist()
+    }
+    @Test fun failureShowsRetryExplanationAndRefreshRemainsAvailable() {
+        var refreshed=false
+        ui.setContent { ClashTheme("light") { Surface {
+            HomeExitCard(AppState(phase=VpnPhase.RUNNING,exitError="failure")){refreshed=true}
+        } } }
+        ui.onNodeWithText("出口信息更新失败，请重试").assertIsDisplayed()
+        ui.onNodeWithTag("refresh-exit-location").assertIsEnabled().performClick()
+        org.junit.Assert.assertTrue(refreshed)
     }
     @Test fun ipv6AndLargeEnglishTextWrapAndDisconnectHidesOldLocation() {
         val vm=MainViewModel(app)

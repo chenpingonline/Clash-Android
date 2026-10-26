@@ -36,8 +36,14 @@ class FeedbackUiTest {
         val repo=ClashRepository.get(ui.activity);runBlocking{repo.initialized()};val before=repo.backup()
         try{
             repo.language("zh");repo.fontScale(1f);repo.theme("light");repo.clearMessage()
+            click("配置")
+            val listBounds=ui.onNodeWithTag("plain-profiles").fetchSemanticsNode().boundsInRoot
             repo.message("设置已保存")
             ui.waitForIdle();noDialogs()
+            assertEquals(listBounds,ui.onNodeWithTag("plain-profiles").fetchSemanticsNode().boundsInRoot)
+            val noticeBounds=ui.onNodeWithTag("operation-notice").fetchSemanticsNode().boundsInRoot
+            assertTrue(noticeBounds.top>listBounds.top+listBounds.height/2)
+            screenshot("bottom-notice-profiles")
             click("设置");ui.onNodeWithText("设置已保存").assertExists()
             screenshot("info-light")
             ui.waitUntil(8000){repo.state.value.error.isBlank()}
@@ -45,14 +51,14 @@ class FeedbackUiTest {
             repo.message("订阅下载失败：HTTP 403；请切换订阅身份后重试",MessageKind.ERROR)
             repo.clearMessage(oldId)
             assertTrue(repo.state.value.error.contains("403"))
-            click("关于与更新");noDialogs()
+            noDialogs()
             screenshot("error-light")
             val start=android.os.SystemClock.uptimeMillis()
             ui.waitUntil(7000){android.os.SystemClock.uptimeMillis()-start>5200}
             assertTrue(repo.state.value.error.contains("403"))
             ui.onNodeWithContentDescription("关闭提示").performClick()
             ui.waitUntil(2000){repo.state.value.error.isBlank()}
-            click("开源许可与来源")
+            click("关于应用");click("开源许可")
             ui.onNodeWithText("GPL-3.0 · Mihomo / Clash-Manager").assertExists();noDialogs()
             click("关闭");ui.onNodeWithText("GPL-3.0 · Mihomo / Clash-Manager").assertDoesNotExist()
         }finally{repo.clearMessage();runBlocking{repo.restoreBackup(before)}}
@@ -62,7 +68,7 @@ class FeedbackUiTest {
         try{
             repo.language("zh");repo.fontScale(1f);repo.clearMessage()
             runBlocking{repo.saveProfile("Feedback fixture",ClashRepository.SAMPLE)};val id=repo.state.value.selectedId
-            click("配置");click("管理")
+            click("配置");ui.onNodeWithTag("profile-manage:$id").performScrollTo().performClick();ui.onNodeWithTag("profile-details:$id").performClick()
             for(theme in listOf("plain","light","dark")){
                 repo.theme(theme);ui.waitForIdle()
                 click("删除配置");ui.onNodeWithText("删除 Feedback fixture？").assertExists();noDialogs()
@@ -91,7 +97,7 @@ class FeedbackUiTest {
             assertEquals(android.content.pm.PackageManager.PERMISSION_DENIED,ui.activity.checkSelfPermission(permission))
             assertFalse(UiDevice.getInstance(instrumentation).hasObject(By.res(Pattern.compile(".*:id/permission_allow_button"))))
             noDialogs();screenshot("vpn-without-notification-prompt")
-            click("停止");ui.waitUntil(15000){repo.state.value.phase==VpnPhase.STOPPED}
+            click("断开");ui.waitUntil(15000){repo.state.value.phase==VpnPhase.STOPPED}
         }finally{
             if(repo.state.value.phase!=VpnPhase.STOPPED){ui.activity.startService(Intent(ui.activity,ClashVpnService::class.java).setAction(ClashVpnService.STOP));ui.waitUntil(15000){repo.state.value.phase==VpnPhase.STOPPED}}
             shell("appops set ${ui.activity.packageName} ACTIVATE_VPN default")

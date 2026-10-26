@@ -35,7 +35,7 @@ class ExternalServicesTest {
    val address=server.url("/subscription?token=fixture-only").toString()
    server.enqueue(MockResponse().setBody(ClashRepository.SAMPLE).setHeader("Subscription-Userinfo","upload=10; download=20; total=1000; expire=2000000000"))
    val yaml=repo.download(address);assertEquals(ClashRepository.SAMPLE,yaml)
-   assertEquals("clash-verge/v2.4.3",server.takeRequest(2,TimeUnit.SECONDS)!!.getHeader("User-Agent"))
+   assertEquals("mihomo",server.takeRequest(2,TimeUnit.SECONDS)!!.getHeader("User-Agent"))
    assertEquals(1000,JSONObject(repo.draft("subscription-info.${address.hashCode()}")).getLong("total"))
    repo.saveProfile("HTTPS fixture",yaml,source=address);val id=repo.state.value.selectedId
    val next=yaml+"\n# updated via TLS"
@@ -79,7 +79,7 @@ class ExternalServicesTest {
    val paths=listOf("/start?token=fixture-only","/step1","/step2","/step2?step=3","/step4","/final")
    paths.forEach{path->
     val request=server.takeRequest(2,TimeUnit.SECONDS)!!
-    assertEquals(path,request.path);assertEquals("clash-verge/v2.4.3",request.getHeader("User-Agent"))
+    assertEquals(path,request.path);assertEquals("mihomo",request.getHeader("User-Agent"))
    }
    suspend fun rejected(response:MockResponse,text:String) {
     val requests=server.requestCount

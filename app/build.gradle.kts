@@ -1,27 +1,56 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val distributionRelease = providers.gradleProperty("distributionRelease").orNull == "true"
+val localReleaseSigning = providers.gradleProperty("localReleaseSigning").orNull == "true"
+check(!(distributionRelease && localReleaseSigning)) { "Choose distribution signing or local debug signing, not both." }
+val distributionSigning = Properties().apply {
+    if (distributionRelease) {
+        val configPath = providers.environmentVariable("CLASH_RELEASE_SIGNING_FILE").orNull
+            ?: error("Set CLASH_RELEASE_SIGNING_FILE to a private signing.properties file outside the repository.")
+        file(configPath).inputStream().use { load(it) }
+        listOf("storeFile", "storePassword", "keyAlias", "keyPassword").forEach { key ->
+            check(!getProperty(key).isNullOrBlank()) { "Missing release signing property: $key" }
+        }
+    }
+}
+
 android {
     namespace = "cn.nascp.clash"
     compileSdk = 36
     defaultConfig {
-        applicationId = "cn.nascp.clash.dev"
+        applicationId = if (distributionRelease) "cn.chenpingonline.clash" else "cn.nascp.clash.dev"
         minSdk = 29
         targetSdk = 36
-        versionCode = 35
-        versionName = "0.2.33-dev"
+        versionCode = 49
+        versionName = if (distributionRelease) "0.2.47" else "0.2.47-dev"
+        manifestPlaceholders["appLabel"] = if (distributionRelease) "Clash" else "Clash Dev"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
+    signingConfigs {
+        if (distributionRelease) {
+            create("distribution") {
+                storeFile = file(distributionSigning.getProperty("storeFile"))
+                storePassword = distributionSigning.getProperty("storePassword")
+                keyAlias = distributionSigning.getProperty("keyAlias")
+                keyPassword = distributionSigning.getProperty("keyPassword")
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Explicit opt-in for local installation; distribution signing is configured separately.
-            if (providers.gradleProperty("localReleaseSigning").orNull == "true") {
+            if (distributionRelease) {
+                signingConfig = signingConfigs.getByName("distribution")
+            } else if (localReleaseSigning) {
                 signingConfig = signingConfigs.getByName("debug")
             }
         }

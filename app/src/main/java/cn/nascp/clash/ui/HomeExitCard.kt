@@ -30,6 +30,7 @@ import cn.nascp.clash.data.VpnPhase
                 else Icon(Icons.Outlined.Refresh,tr("刷新出口信息"))
             }
         }
+        if(data != null) {
         HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
@@ -41,10 +42,25 @@ import cn.nascp.clash.data.VpnPhase
                 UiText(place.ifBlank{"—"},style=MaterialTheme.typography.bodyMedium,maxLines=2,overflow=TextOverflow.Ellipsis)
             }
         }
+        ExitInfoRow("运营商",data?.organization.orEmpty())
+        ExitInfoRow("ASN",data?.asn?.takeIf{it>0}?.let{"AS$it"}.orEmpty())
+        ExitInfoRow("组织",data?.asnOrganization.orEmpty())
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.Top) {
             UiText("时区",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             UiText(listOfNotNull(data?.timezone?.takeIf{it.isNotBlank()},data?.utcOffset?.takeIf{it.isNotBlank()}).joinToString(" · ").ifBlank{"—"},
                 Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
         }
+        if(data?.source?.isNotBlank()==true)ExitInfoRow("检测来源",data.source)
+        }
+        if(running && state.exitError.isNotBlank()) {
+            UiText("出口信息更新失败，请重试",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+@Composable private fun ExitInfoRow(label:String,value:String) {
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.Top) {
+        UiText(label,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        UiText(value.ifBlank{"—"},Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
     }
 }
