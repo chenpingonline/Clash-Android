@@ -1,65 +1,161 @@
 # Clash Android
 
-原生 Android 开发版，沿用已选第 2 组设计方向，Kotlin + Jetpack Compose，免 Root VpnService + Mihomo。当前版本 **0.2.25-dev**（修复与扩展验收见 [更新记录](CHANGELOG.md)）：五个主入口、34 个二级路由已接入实际操作，仅保留跟随系统、浅色、深色三种外观模式：浅色沿用「素白」，深色采用纯黑背景与深灰圆角卡片。新安装默认跟随系统，旧版「素白」「雾绿磨砂」「流光白」设置迁移为浅色；代理页采用可折叠圆角组头和双列节点。可从首页调色盘或设置中的外观与语言切换，选择会持久保存并随备份恢复。本地模拟器验证通过不代表真机或全部外部服务验收完成。
+基于 **Mihomo** 的原生 Android 客户端，使用 Kotlin 与 Jetpack Compose 构建，通过 Android VPN 接管流量，无需 Root。
 
-## 当前范围
+支持订阅与配置管理、节点切换与测速、规则分流、连接查看、远程控制，以及跟随系统的浅色与深色主题。
 
-| 模块 | 当前实现 |
+**[下载最新正式版](https://github.com/chenpingonline/Clash-Android/releases/latest)** · **[更新记录](CHANGELOG.md)** · **[构建说明](#本地构建)** · **[第三方来源](THIRD_PARTY.md)**
+
+## 下载与安装
+
+当前正式版：**[0.2.45](https://github.com/chenpingonline/Clash-Android/releases/tag/v0.2.45)**。
+
+| 项目 | 说明 |
 | --- | --- |
-| 首页 | 实时上下行速率、跨重启累计流量、当前配置与节点；按当前路由查询出口 IP/地区/时区，多服务兜底与手动刷新 |
-| 配置与订阅 | HTTPS / 文件 / 粘贴导入，每订阅 User-Agent、手动身份对比、脱敏 HTTP 错误诊断、校验、更新、订阅配额信息、周期更新；运行中更新暂存，停止后应用 |
-| 节点与策略组 | 搜索、过滤、排序、单个/批量测速、节点选择、可视化增改和顺序调整、增强重置；协议高级字段可用 YAML 编辑 |
-| 规则与增强 | 规则增改/排序、运行时单个/批量启停、规则集更新；共享 INI/MRS 等导入预览；全局/配置覆写与 JavaScript |
-| 编辑器与历史 | 原始 YAML、生效预览、搜索、行号、语法着色、内核校验、加密草稿、历史差异和校验恢复 |
-| 网络与 DNS | HTTP/SOCKS/Mixed 端口、LAN、认证、DNS 与 Hosts、GEO 来源及更新；校验失败保留原数据 |
-| VPN | 系统授权、前台服务、启停/重启、应用允许/排除、IPv6 开关、MTU、局域网绕过、排除网段、网络变化回调 |
-| 活动 | 流量、连接筛选/详情/单个与批量关闭、有限量脱敏日志、暂停与导出、实际路由出口探测 |
-| 系统集成 | WorkManager 周期订阅更新、通知授权、快捷磁贴、系统始终开启 VPN 入口 |
-| 数据与外观 | Keystore + AES-GCM、带事务恢复日志的备份还原、诊断 ZIP、主题/语言/字号偏好；非模态提示及页面内操作确认 |
-| 远程控制 | HTTPS 实例与加密认证、连接测试、节点/模式、规则、连接管理、WebSocket 日志；独立于本机 VPN |
+| 系统要求 | Android 10 及以上 |
+| 支持架构 | ARM64 / arm64-v8a |
+| 正式包名 | `cn.chenpingonline.clash` |
+| 安装包 | `Clash-Android-0.2.45-arm64.apk`，约 24.6 MiB |
+| 构建方式 | release 构建，启用 R8 优化和资源裁剪，使用专用发行签名 |
 
-普通操作反馈在顶部显示并于5秒后收起，错误提示保留至关闭；提示期间可继续导航。删除、恢复、批量修改等操作在页面内二次确认，许可在页面内展开。启动VPN不主动请求通知权限，可在自动化页面的通知设置中主动开启；首次VPN授权及文件选择仍由Android提供系统流程。
+在 [Releases](https://github.com/chenpingonline/Clash-Android/releases) 下载 APK，按 Android 提示允许安装并完成安装。每个正式 Release 同时提供 SHA-256 校验文件；重建已发布版本时，请使用该 Release 附带的 `-source.tar.gz` 对应源码快照。
 
-控制中心快捷开关：在「设置 → 自动化与后台」点击「添加到快捷设置」（Android 13 及以上会弹出系统添加面板），或下拉控制中心点击编辑，手动添加「Clash VPN」。点击开关可连接/断开，连接期间显示状态；首次使用需先在应用中选择配置并完成 VPN 授权。
+### 从开发版迁移
 
-配置编辑会先校验，运行中的当前配置需停止 VPN 后修改并重新启动生效。原始订阅与用户增强分离，订阅刷新不会直接覆盖增强。配置页分别提供“全局覆写”和“全局扩展脚本”，作用于所有配置；订阅管理中的覆写和脚本仅作用于当前订阅。“配置文件（YAML）”查看或编辑该订阅的原始配置及合并预览。恢复备份前预览和校验；备份/YAML 导出包含凭据，诊断包不包含原始配置和日志正文。
+正式版 `cn.chenpingonline.clash` 与旧开发版 `cn.nascp.clash.dev` 是两个独立应用，可以同时安装，不能互相覆盖。
+
+1. 在开发版的「设置 → 备份与恢复」导出备份。
+2. 安装正式版，在同一入口恢复备份。
+3. 核对配置、偏好及 VPN 连接正常后，再决定是否移除开发版。
+
+备份和 YAML 导出可能包含订阅地址与认证信息，请妥善保存。
+
+## 开始使用
+
+1. 打开「配置」，通过 **HTTPS 订阅链接、文件或粘贴 YAML** 导入配置。
+2. 选择配置，在「代理」切换节点或策略组，按需测速。
+3. 返回首页启动 VPN，首次启动按系统提示完成 VPN 授权。
+
+目前接受 Clash YAML 格式，不转换通用 Base64 节点订阅。订阅默认 User-Agent 为 `mihomo`，可在高级选项中自定义。
+
+需要控制中心快捷开关时，在「设置 → 系统集成与后台」添加「Clash VPN」磁贴，或在 Android 快捷设置的编辑界面手动添加。首次使用前，需在应用中选择配置并完成 VPN 授权。
+
+## 主要功能
+
+| 模块 | 功能 |
+| --- | --- |
+| 首页 | 实时速率、累计流量、当前配置与节点，以及按当前路由查询的出口 IP、地区和运营商信息 |
+| 配置与订阅 | HTTPS / 文件 / YAML 导入、订阅身份设置、配额信息、手动与周期更新 |
+| 节点与策略组 | 搜索、筛选、排序、节点选择、单个与批量测速，可视化编辑及顺序调整 |
+| 规则与增强 | 配置规则和规则集管理、运行规则启停、规则导入预览、全局与单配置覆写、JavaScript 扩展 |
+| YAML 编辑器 | 原始配置、生效预览、搜索、行号、语法着色、内核校验、加密草稿及历史差异恢复 |
+| 网络与 DNS | 代理端口、LAN、认证、DNS、Hosts、GEO 数据来源及更新设置 |
+| VPN 与系统集成 | 分应用代理、IPv6、MTU、局域网绕过、排除网段、快捷磁贴及系统始终开启 VPN 的设置入口 |
+| 活动与诊断 | 连接筛选与详情、应用归属、单个与批量关闭连接、日志查看与导出、诊断 ZIP |
+| 远程控制 | HTTPS 控制器管理、连接测试、节点与模式切换、规则、连接及 WebSocket 日志 |
+| 数据与外观 | 备份恢复、Keystore 与 AES-GCM 本地保护、主题、中文 / English、字号偏好 |
+| 应用更新 | 检查 GitHub Releases、查看更新说明、下载安装包、校验并交由系统安装 |
+
+### 配置修改如何生效
+
+- 原始订阅与用户增强分离，刷新订阅不会直接覆盖已保存的增强。
+- 全局覆写和全局扩展脚本作用于所有配置；单配置增强只作用于对应配置。
+- 配置保存前执行内核校验。运行中的当前配置需停止 VPN 后修改，并在下次启动时生效。
+- 运行中下载的当前订阅更新会先暂存，停止 VPN 后可在订阅详情中应用。
+- 活动页的运行规则操作作用于当前运行实例；持久规则定义在配置管理中编辑。
+
+## 应用内更新
+
+进入 **设置 → 关于应用 → 应用更新**，手动检查、下载并安装。
+
+- 正式版只接收正式 Release；开发版的检查范围包含预发布版本。
+- 下载支持进度显示与取消。下载后及安装前检查大小、SHA-256、包名、版本和签名。
+- 更新需要相同包名和签名，并递增 `versionCode`。开发版与正式版之间请按上文迁移。
+- 安装由 Android 系统确认；首次使用需允许本应用安装未知应用。
+- 下载依赖应用进程，不支持断点续传或进程结束后恢复；重启应用后需重新检查、下载。
+
+更新源为本仓库的 GitHub Releases，不内置访问令牌。网络失败或请求受限会显示错误，GitHub 及其下载服务的可达性取决于当前网络。
+
+## 使用边界
+
+- 目前只提供 ARM64 APK。应用通过 Android VPN 工作，不提供 Root、iptables/nftables 或热点透明代理；LAN 显式代理需由客户端单独配置。
+- 应用自身的网络请求受当前 VPN 路由影响。内核出站套接字通过 `VpnService.protect` 防止回环；出口探测结果反映当前实际路由。
+- 应用归属受 Android 包可见性和系统 UID 查询限制。无法识别时显示未知，共享 UID 不指认单个应用。
+- 周期订阅更新最短间隔为 15 分钟，受系统网络、电量和后台调度限制，不保证准点，也不承诺永久保活。
+- Mihomo 内核随 APK 一起升级；GEO 数据可按已加载配置中的来源更新。
+- 已有模拟器及部分真机验证记录，但长期后台、网络切换、厂商系统兼容性和完整线上覆盖升级仍需持续验证。各次验证的范围以对应记录为准。
+
+[正式发行验证](docs/qa/distribution-0.2.45/README.md) · [应用更新验证](docs/qa/app-update/README.md) · [验证记录目录](docs/qa/README.md)
 
 ## 本地构建
 
-基线：JDK 21、Go 1.25.6、Android SDK 36、NDK 29.0.14206865；Gradle wrapper 8.14、AGP 8.12.1、Kotlin 2.2.20。构建脚本面向 macOS，输出 arm64-v8a；minSdk 29 / targetSdk 36。
+构建脚本目前面向 macOS，输出 ARM64 APK。环境基线：
 
-在 `local.properties` 设置 `sdk.dir`，或设置 `ANDROID_HOME`。NDK 可用 `ANDROID_NDK_HOME` 指定。
+| 工具 | 版本 |
+| --- | --- |
+| JDK | 21 |
+| Go | 1.25.6 |
+| Android SDK / NDK | 36 / 29.0.14206865 |
+| Gradle / Android Gradle Plugin | 8.14 / 8.12.1 |
+| Kotlin | 2.2.20 |
 
-默认打包和交付均使用精简包，统一执行 `./scripts/build.sh`；只有明确需要调试时才运行 `./scripts/build-debug.sh`。
+在 `local.properties` 设置 `sdk.dir`，或设置 `ANDROID_HOME`；NDK 路径可通过 `ANDROID_NDK_HOME` 指定。首次构建需要下载 Gradle、Maven 和 Go 依赖。
+
+### 本地开发测试包
 
 ```sh
 ./scripts/build.sh
-# 精简本地测试包：dist/Clash-Android-<version>-compact-local-arm64.apk
-./gradlew :app:testDebugUnitTest :app:connectedDebugAndroidTest
+```
+
+默认生成启用 R8 和资源裁剪的紧凑包，使用本机 debug 证书签名，以便覆盖已有开发测试版：
+
+```text
+dist/Clash-Android-<version>-compact-local-arm64.apk
+```
+
+包名为 `cn.nascp.clash.dev`，版本带 `-dev`。只有需要可调试构建时，才使用 `./scripts/build-debug.sh`。
+
+### 正式发行包
+
+在仓库外准备私有签名配置，再执行：
+
+```sh
+export CLASH_RELEASE_SIGNING_FILE="$HOME/.config/clash-android/signing/signing.properties"
+./scripts/build-distribution.sh
+```
+
+私有配置包含四项：
+
+| 配置项 | 含义 |
+| --- | --- |
+| `storeFile` | 密钥库的绝对路径 |
+| `storePassword` | 密钥库密码 |
+| `keyAlias` | 签名密钥别名 |
+| `keyPassword` | 签名密钥密码 |
+
+正式构建使用 `cn.chenpingonline.clash` 和不带 `-dev` 的版本名，生成 `dist/Clash-Android-<version>-arm64.apk`、SHA-256 校验文件及本地混淆映射。
+
+两种紧凑构建都会运行 release 构建、Lint 和单元测试，并将同名 `.mapping.txt` 保存到 `dist/`，供对应版本排查崩溃使用。请备份发行密钥与签名配置，不要将它们或真实密码提交到仓库、上传到 Release。自行构建者需使用自己的密钥；官方包的覆盖更新需沿用官方发行签名。
+
+构建脚本依次准备共享源码、构建 JNI、打包 APK；直接运行 Gradle 不会自动重建 Go。构建、代码提交、推送与 Release 发布分别执行，脚本不会自动发布。
+
+### 测试
+
+```sh
+# Kotlin 单元测试
+./gradlew :app:testDebugUnitTest
+
+# 已完成源码准备后，在 core 目录运行原生与共享包测试
 cd core
 go test -race ./... clashmanager/configyaml clashmanager/ruleimport
 ```
 
-首次构建需下载 Gradle/Maven/Go 依赖。脚本依次导出共享包、构建 JNI、构建 APK；普通 Gradle 不会自动重建 Go。网络集成测试需按 [0.2.1 验证记录](docs/qa/0.2.1/README.md) 启动本地夹具并传入参数。
+Android 仪器测试需要 adb 设备或模拟器；部分测试还依赖本地网络夹具和启动参数，详见 [验证记录](docs/qa/README.md) 及 [网络测试说明](docs/qa/0.2.1/README.md)。
 
-精简脚本使用 release 构建，启用 R8 代码优化与资源裁剪，并排除仅供 debug 使用的 Compose 调试工具；JNI 桥接类与原生回调通过定向规则保留。功能与内核保持完整。为便于本地覆盖安装，脚本显式使用本机 debug 证书；不是正式发行签名。直接运行 `assembleRelease` 不会自动使用 debug 签名。混淆映射会以同名 `.mapping.txt` 复制到 `dist/`，排查该构建崩溃时需要保留对应映射。
+## 内核与开源来源
 
-应用 ID `cn.nascp.clash.dev`，仅使用本地 debug 签名。未提交、推送、发布或配置 GitHub Actions。
+- **Mihomo v1.19.30**：启用 `with_gvisor`，由 `VpnService` 提供 TUN 文件描述符；Android 适配可在 [prepare-core.py](scripts/prepare-core.py) 中核对。
+- **Clash-Manager**：复用 `configyaml` 与 `ruleimport`，固定提交 `261050fe9b6c1d64ae387be5900228429b9816bd`；准备流程见 [prepare-shared.py](scripts/prepare-shared.py)，可通过 `CLASH_MANAGER_SOURCE` 指定本地仓库。
+- Kotlin、AndroidX、OkHttp 及其他依赖分别在 Gradle、`core/go.mod` 和 `core/go.sum` 中声明。
 
-## 内核与平台适配
-
-Mihomo 固定 v1.19.30，启用 `with_gvisor`。VpnService 建立 TUN，Go 拷贝文件描述符并管理副本。控制器仅绑定 localhost，使用随机认证；停止时关闭 TUN、显式代理和 DNS 监听，支持进程内再次启动。GEO 周期更新由 Android 服务管理。
-
-`scripts/prepare-core.py` 从 Go 模块缓存导出内核，只修改一个平台接入点：已有 VpnService 文件描述符时跳过读取系统 packages.xml；应用分流由 Android Builder 处理。Clash-Manager 的 `configyaml`、`ruleimport` 固定提交 `261050fe9b6c1d64ae387be5900228429b9816bd`；后者只适配导入路径。可用 `CLASH_MANAGER_SOURCE` 指定本地源码。上游及现有 Clash 项目未改写。
-
-## 验证边界与平台限制
-
-- 已在 Android 16 arm64 模拟器验证 TUN TCP/UDP/DNS、显式 HTTP 代理、规则/模式变化与重复启停；全部二级页面覆盖双主题。详细证据见验证记录。
-- 本轮补测受控 HTTPS 订阅/远程协议、SOCKS5 转发、分应用路由、系统授权和文件导出恢复。真机 IPv6、Wi-Fi/移动网络切换、长期后台与系统回收、厂商 Always-on/阻断兼容性、16 KiB 页设备、实际远程节点/订阅/控制器及 GEO 下载仍需独立验证。当前仅提供 arm64 APK。
-- 应用自身纳入 VPN，内核出站套接字通过 VpnService.protect 防止回环；运行中订阅请求按 VPN 规则路由。阻断模式下，排除应用或网段可能无法联网。应用列表受 Android 包可见性限制，无法取得连接所属应用时显示未知。
-- 周期订阅任务最短 15 分钟，受系统调度影响；失败尝试也按配置的更新间隔等待下次执行，手动更新可立即发起。订阅下载整体预算为60秒，覆盖跳转、正文和重试；403等鉴权/权限错误不重试，临时网络错误及502/503/504最多重试一次，仍共用60秒预算。失败或配置校验不通过时保留原配置及此前有效的暂存更新。不承诺永久保活。内核随 APK 更新，不提供伪动态升级；Android 发布源尚未配置。
-- 无 Root 不提供 Linux 服务、iptables/nftables、热点透明代理。显式 LAN 代理与热点透明接管是不同能力。VPN 的 TUN、控制器及平台管理字段统一由 Android 接管。
-- 配置订阅当前接受 Clash YAML；不转换通用 Base64 节点订阅。HTTPS 订阅自动跟随 301/302/303/307/308 重定向（最多 5 次），支持相对地址，拒绝循环及降级到 HTTP；后续更新仍使用原始订阅地址和该配置保存的 User-Agent。链接导入默认仅显示可选名称、订阅地址和一步导入按钮，自动下载、校验并保存；User-Agent 和连接诊断收进高级选项。导入及订阅信息页仅提供默认和自定义 User-Agent，默认与 Clash for fnOS 一致，为 `clash-verge/v2.4.3`；已保存的订阅身份保留并显示为自定义。手动连接诊断顺序对比当前与默认身份（相同值去重），逐项显示最终状态码、响应耗时及跳转次数；可取消，每种身份最多30秒，HTTP成功不代表配置校验通过。选择成功身份后仍需保存才持久生效。HTTP 失败保留状态码、跳转次数和固定类别摘要，服务端正文不直接展示或保存；最近失败可在订阅信息与诊断导出查看。规则导入支持范围由共享解析器给出预览/错误。
-- 中文/English 覆盖主要应用控件；用户配置名与内核原始错误保留原文。页面与控件使用轻量过渡，跟随系统动画缩放。高级协议字段通过 YAML 保留，未为每种内核协议单独制作表单。
-
-[代理组布局验证](docs/qa/proxy-group-layout/README.md) · [实施计划](docs/implementation-plan.md) · [当前验证记录](docs/qa/0.2.6/README.md) · [早期验证记录](docs/qa/README.md) · [第三方来源](THIRD_PARTY.md)
+本项目采用 [GPL-3.0](LICENSE)。第三方来源与许可说明见 [THIRD_PARTY.md](THIRD_PARTY.md)。
